@@ -1,5 +1,5 @@
 {
-    "version": "0.1.1",
+    "version": "0.1.2",
     "license": "MIT",
     "main": "dist/index.js",
     "module": "dist/esm/index.mjs",
@@ -78,10 +78,10 @@
         "@azlabsjs/utilities": "^0.1.11"
     },
     "publishConfig": {
-      "registry": "https://npm.pkg.github.com/@azlabsjs"
+        "registry": "https://npm.pkg.github.com/@azlabsjs"
     },
     "repository": {
-      "type": "git",
-      "url": "https://github.com/azlabsjs/rx-query.git"
+        "type": "git",
+        "url": "https://github.com/azlabsjs/rx-query.git"
     }
 }
