@@ -76,5 +76,12 @@
         "@azlabsjs/functional": "^0.1.11",
         "@azlabsjs/rx-hooks": "^0.1.15",
         "@azlabsjs/utilities": "^0.1.11"
+    },
+    "publishConfig": {
+      "registry": "https://npm.pkg.github.com/@azlabsjs"
+    },
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/azlabsjs/rx-query.git"
     }
 }
