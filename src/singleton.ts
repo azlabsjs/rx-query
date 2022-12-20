@@ -11,6 +11,11 @@ import { QueryArguments, QueryManager, QueryState } from './types';
  */
 let instance$!: QueryManager<Observable<QueryState>>;
 
+type InvokeQueryType = <T extends (...args: any) => void>(
+  action: T,
+  ...args: [...QueryArguments<T>]
+) => void;
+
 /**
  * Provides a query manager singleton that might be used to handle queries of the application
  * that might or might not require caching.
@@ -22,23 +27,25 @@ let instance$!: QueryManager<Observable<QueryState>>;
  * or {@see QueryProvider} service
  */
 export function useQueryManager() {
-  if (instance$ === null || typeof instance$ === 'undefined') {
-    instance$ = createQueryManager();
-  }
-  function query$<T extends (...args: any) => void>(
-    action: T,
-    ...args: [...QueryArguments<T>]
-  ) {
-    return instance$.invoke.bind(instance$)(action, ...args);
-  }
-  Object.defineProperty(query$, 'invoke', {
-    value: <T extends (...args: any) => void>(
+  function createQuery$(object$: QueryManager<Observable<QueryState>>) {
+    return <T extends (...args: any) => void>(
       action: T,
       ...args: [...QueryArguments<T>]
     ) => {
-      return instance$.invoke(action, ...args);
-    },
-  });
-  return query$ as QueryManager<Observable<QueryState>> &
-    typeof instance$.invoke;
+      return object$.invoke.bind(object$)(action, ...args);
+    };
+  }
+  if (instance$ === null || typeof instance$ === 'undefined') {
+    const query$ = createQuery$(createQueryManager());
+    Object.defineProperty(query$, 'invoke', {
+      value: <T extends (...args: any) => void>(
+        action: T,
+        ...args: [...QueryArguments<T>]
+      ) => {
+        return instance$.invoke(action, ...args);
+      },
+    });
+    instance$ = query$ as unknown as QueryManager<Observable<QueryState>>;
+  }
+  return instance$ as QueryManager<Observable<QueryState>> & InvokeQueryType;
 }
