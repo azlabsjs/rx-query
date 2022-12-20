@@ -1,0 +1,6 @@
+
+#!/bin/sh
+
+npx betterer precommit
+npx lint-staged
+ts-build build

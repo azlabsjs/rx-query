@@ -1,0 +1,35 @@
+
+name: size
+on: [pull_request]
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v2
+
+      - name: Use Node
+        uses: actions/setup-node@v1
+        with:
+          node-version: 16
+
+      - name: Check npm version
+        run: npm -v
+
+      - name: Removes package-lock.json
+        run: rm package-lock.json
+
+      - name: Install deps
+        uses: bahmutov/npm-install@v1
+        with:
+          useLockFile: false
+  
+      - name: Build
+        run: npm run build
+
+      - run: npm run size
+    
+    env:
+      CI_JOB_NUMBER: 1
+      NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
