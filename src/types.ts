@@ -1,5 +1,5 @@
-import { Observable, ObservableInput } from "rxjs";
-import { CacheQueryConfig } from "./caching";
+import { Observable, ObservableInput } from 'rxjs';
+import { CacheQueryConfig } from './caching';
 
 //#region Requests service types
 export interface Disposable {
@@ -12,7 +12,7 @@ export interface Disposable {
 export type QueryState<TPayload = unknown> = {
   id: string;
   pending: boolean;
-  state: "success" | "revalidate" | "error" | "loading";
+  state: 'success' | 'revalidate' | 'error' | 'loading';
   argument: TPayload;
   // Refetch the query state
   refetch: () => void;
@@ -31,7 +31,9 @@ export type QueryState<TPayload = unknown> = {
 /**
  * @internal
  */
-export type QueryPayload<TFunc extends Function = Function> = {
+export type QueryPayload<
+  TFunc extends (...args: any) => void = (...args: any) => void
+> = {
   argument: [string, TFunc, ...QueryArguments<TFunc>];
   callback: () => ObservableInput<unknown>;
   id: string;
@@ -73,14 +75,20 @@ export type Action<T = unknown> = {
  * @description Query comment interface
  */
 export interface CommandInterface<R = unknown> {
-  dispatch<T extends Function>(action: T, ...args: [...QueryArguments<T>]): R;
+  dispatch<T extends (...args: any) => void>(
+    action: T,
+    ...args: [...QueryArguments<T>]
+  ): R;
 }
 
 /**
  * @description Query manager interface
  */
 export interface QueryManager<R> {
-  invoke<T extends Function>(action: T, ...args: [...QueryArguments<T>]): R;
+  invoke<T extends (...args: any) => void>(
+    action: T,
+    ...args: [...QueryArguments<T>]
+  ): R;
 }
 
 /**
@@ -141,7 +149,7 @@ export type QueryClientType<TMethod extends string> = {
  */
 export type QueryProviderType<
   TQueryParameters extends [...any[]] = any,
-  ProvidesType extends any = any
+  ProvidesType = any
 > = {
   /**
    * Sends a client request to a server enpoint and returns
@@ -157,6 +165,6 @@ export type QueryProviderType<
  */
 export type QueryProviderFunc<
   TQueryParameters extends [...any[]] = any,
-  ProvidesType extends any = any
+  ProvidesType = any
 > = (...args: TQueryParameters) => ObservableInput<ProvidesType>;
 //#endregion

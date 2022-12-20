@@ -1,6 +1,6 @@
-import { Observable } from "rxjs";
-import { createQueryManager } from "./base";
-import { QueryArguments, QueryManager, QueryState } from "./types";
+import { Observable } from 'rxjs';
+import { createQueryManager } from './base';
+import { QueryArguments, QueryManager, QueryState } from './types';
 
 /**
  * Holds a static reference to the query manager instance
@@ -22,17 +22,20 @@ let instance$!: QueryManager<Observable<QueryState>>;
  * or {@see QueryProvider} service
  */
 export function useQueryManager() {
-  if (instance$ === null || typeof instance$ === "undefined") {
+  if (instance$ === null || typeof instance$ === 'undefined') {
     instance$ = createQueryManager();
   }
-  function query$<T extends Function>(
+  function query$<T extends (...args: any) => void>(
     action: T,
     ...args: [...QueryArguments<T>]
   ) {
     return instance$.invoke.bind(instance$)(action, ...args);
   }
-  Object.defineProperty(query$, "invoke", {
-    value: <T extends Function>(action: T, ...args: [...QueryArguments<T>]) => {
+  Object.defineProperty(query$, 'invoke', {
+    value: <T extends (...args: any) => void>(
+      action: T,
+      ...args: [...QueryArguments<T>]
+    ) => {
       return instance$.invoke(action, ...args);
     },
   });

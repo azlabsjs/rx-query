@@ -1,9 +1,9 @@
-import { deepEqual } from "@azlabsjs/utilities";
-import { ObservableInput } from "rxjs";
-import { QueryArguments } from "../types";
-import { CachedRequest, RequestsCache } from "./cache";
-import { defaultCacheConfig } from "./internal";
-import { CacheQueryConfig, RequestsCacheItemType } from "./types";
+import { deepEqual } from '@azlabsjs/utilities';
+import { ObservableInput } from 'rxjs';
+import { QueryArguments } from '../types';
+import { CachedRequest, RequestsCache } from './cache';
+import { defaultCacheConfig } from './internal';
+import { CacheQueryConfig, RequestsCacheItemType } from './types';
 
 /**
  * @interface
@@ -39,8 +39,8 @@ export function cacheRequest(prop: {
   return new CachedRequest(
     objectid,
     argument,
-    typeof properties === "boolean" ||
-    (typeof properties === "object" &&
+    typeof properties === 'boolean' ||
+    (typeof properties === 'object' &&
       properties !== null &&
       deepEqual(properties, {}))
       ? defaultCacheConfig
@@ -73,18 +73,18 @@ export function buildCacheQuery<T extends (...args: any) => any>(
   let name!: string;
   if (
     cacheConfig &&
-    typeof cacheConfig.name !== "undefined" &&
+    typeof cacheConfig.name !== 'undefined' &&
     cacheConfig.name !== null
   ) {
     name = cacheConfig.name;
   } else {
     const fn = _arguments[1];
-    const funcName = fn.name === "" ? undefined : fn.name;
+    const funcName = fn.name === '' ? undefined : fn.name;
     const parameters = fn.toString().match(/\( *([^)]+?) *\)/gi);
     name =
       fn.prototype ??
       `${funcName ?? `native anonymous`}${
-        parameters ? parameters[0] : "()"
+        parameters ? parameters[0] : '()'
       } { ... }`;
   }
   return [_arguments[0], name, ...argument.slice(2)];

@@ -4,13 +4,13 @@ import {
   distinctUntilChanged,
   filter,
   first,
-  map
-} from "rxjs";
-import { QueryState, State } from "./types";
+  map,
+} from 'rxjs';
+import { QueryState, State } from './types';
 
 /**
  * Creates a selector that return the first value matching a given predicate
- * 
+ *
  * @internal
  */
 export function firstWhere<T = unknown>(predicate: (value: T) => boolean) {
@@ -43,9 +43,9 @@ export function apiResponseBody<TBody = unknown>(
   return (observable$: Observable<QueryState>) =>
     observable$.pipe(
       apiResponse((request) => {
-        key = key ?? "body";
+        key = key ?? 'body';
         const response = request.response as Record<string, any>;
-        return response && typeof response === "object" && key in response
+        return response && typeof response === 'object' && key in response
           ? response[key]
           : response;
       })
@@ -60,6 +60,6 @@ export function selectRequest(argument: unknown) {
   return (observable$: Observable<State>) =>
     observable$.pipe(
       map((state) => state.requests.find((request) => request.id === argument)),
-      filter((state) => typeof state !== "undefined" && state !== null)
+      filter((state) => typeof state !== 'undefined' && state !== null)
     ) as Observable<QueryState>;
 }

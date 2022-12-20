@@ -1,5 +1,5 @@
-import { memoize } from "@azlabsjs/functional";
-import { useRxEffect } from "@azlabsjs/rx-hooks";
+import { memoize } from '@azlabsjs/functional';
+import { useRxEffect } from '@azlabsjs/rx-hooks';
 import {
   EMPTY,
   Observable,
@@ -13,11 +13,11 @@ import {
   observeOn,
   of,
   startWith,
-  tap
-} from "rxjs";
-import { buildCacheQuery, cacheRequest, requestsCache } from "./caching";
-import { useRequestSelector } from "./helpers";
-import { guid } from "./internal";
+  tap,
+} from 'rxjs';
+import { buildCacheQuery, cacheRequest, requestsCache } from './caching';
+import { useRequestSelector } from './helpers';
+import { guid } from './internal';
 import {
   Action,
   CommandInterface,
@@ -28,12 +28,12 @@ import {
   QueryManager,
   QueryPayload,
   QueryState,
-  State
-} from "./types";
+  State,
+} from './types';
 
 //@internal
-const QUERY_RESULT_ACTION = "[REQUEST_RESULT_ACTION]";
-const NOQUERYACTION = Symbol("__NO__QUERY__ACTION__");
+const QUERY_RESULT_ACTION = '[REQUEST_RESULT_ACTION]';
+const NOQUERYACTION = Symbol('__NO__QUERY__ACTION__');
 
 export type UseReducerReturnType<T, ActionType> = readonly [
   Observable<T>,
@@ -111,7 +111,7 @@ export class Requests
           } = (resultPayload ?? {}) as QueryState;
           // If the response does not contains any id field, we cannot process any further
           // therefore simply return the current state
-          if (null === id || typeof id === "undefined") {
+          if (null === id || typeof id === 'undefined') {
             return { ...state };
           }
           const requests: QueryState[] = [...(state.requests ?? [])];
@@ -159,7 +159,7 @@ export class Requests
         // Case the request action name not equals REQUEST_RESULT_ACTION, we internally handle the request
         // and dispatch the result into the store
         const { payload } = action as Required<Action<QueryPayload>>;
-        let { id, argument, callback } = payload;
+        const { id, argument, callback } = payload;
         let performingAction = false;
         //#region Send the request to the API server
         if (callback) {
@@ -170,7 +170,7 @@ export class Requests
         const req = {
           id,
           pending: true,
-          state: "loading",
+          state: 'loading',
           argument,
           response: undefined,
           timestamps: {
@@ -208,7 +208,10 @@ export class Requests
     );
   }
 
-  invoke<T extends Function>(action: T, ...args_0: QueryArguments<T>) {
+  invoke<T extends (...args: any) => void>(
+    action: T,
+    ...args_0: QueryArguments<T>
+  ) {
     return useRequestSelector(
       this.state$,
       this.cache
@@ -236,7 +239,7 @@ export class Requests
             id,
             response,
             ok: true,
-            state: "success",
+            state: 'success',
           } as QueryState,
         })),
         catchError((error) => {
@@ -254,28 +257,28 @@ export class Requests
                 id,
                 error,
                 ok: false,
-                state: "error",
+                state: 'error',
               } as QueryState,
             });
           }
         }),
         tap(this.dispatch$)
       ),
-      [this, "destroy"]
+      [this, 'destroy']
     );
   }
 
   private resolve<F extends ObservableInputFunction>(
     action: F,
     ...args: QueryArguments<typeof action>
-  ): [string, Required<Action<unknown>> | Symbol, boolean] {
-    let cached: boolean = false;
+  ): [string, Required<Action<unknown>> | symbol, boolean] {
+    let cached = false;
     let uuid!: string;
     // TODO: finds a meaninful action name for function dispatch
-    const actionType = "[requests_fn_action]";
+    const actionType = '[requests_fn_action]';
     //#region caching request
     const cacheConfig = (
-      (action as Function).length < args.length
+      (action as (...args: any) => void).length < args.length
         ? args[args.length - 1]
         : undefined
     ) as FnActionArgumentLeastType;
@@ -302,7 +305,7 @@ export class Requests
       const cachedRequest = this.cache.get(requestArgument);
       // Evaluate the staleTime and cacheTime to know if the request expires or not and need to be refetched
       if (
-        typeof cachedRequest !== "undefined" &&
+        typeof cachedRequest !== 'undefined' &&
         cachedRequest !== null &&
         !cachedRequest.expires()
       ) {
@@ -314,7 +317,7 @@ export class Requests
         return [uuid, NOQUERYACTION, cached];
       }
 
-      if (Boolean(cachedRequest?.expires())) {
+      if (cachedRequest?.expires()) {
         this.cache.remove(cachedRequest);
       }
     }
@@ -354,7 +357,7 @@ export class Requests
                 id: uuid,
                 error,
                 ok: false,
-                state: "error",
+                state: 'error',
               } as QueryState,
             });
           },
@@ -374,7 +377,10 @@ export class Requests
   }
 
   // Dispatch method implementation
-  dispatch<T extends Function>(action: T, ...args: [...QueryArguments<T>]) {
+  dispatch<T extends (...args: any) => void>(
+    action: T,
+    ...args: [...QueryArguments<T>]
+  ) {
     const [uuid, _action, cached] = this.resolve(action as any, ...args);
     // In case the request is cached, we do not dispatch any request action as the
     // The selector will return the return the new state of the request query

@@ -1,9 +1,12 @@
-import { useRxEffect } from "@azlabsjs/rx-hooks";
-import { deepEqual, isPrimitive } from "@azlabsjs/utilities";
+import { useRxEffect } from '@azlabsjs/rx-hooks';
+import { deepEqual, isPrimitive } from '@azlabsjs/utilities';
 import {
+  EMPTY,
+  Observable,
+  ObservableInput,
+  Subject,
   asyncScheduler,
   catchError,
-  EMPTY,
   filter,
   first,
   from,
@@ -11,14 +14,11 @@ import {
   isObservable,
   lastValueFrom,
   mergeMap,
-  Observable,
-  ObservableInput,
   observeOn,
-  Subject,
   takeUntil,
-  tap
-} from "rxjs";
-import { CacheQueryConfig, RequestsCacheItemType } from "./types";
+  tap,
+} from 'rxjs';
+import { CacheQueryConfig, RequestsCacheItemType } from './types';
 
 /**
  * Internal caching implementation of requests.
@@ -123,12 +123,12 @@ export class RequestsCache<
     // Case the key is not found, index will still be -1, therefore we search
     return this._state.findIndex((request) => {
       if (
-        ((typeof request.argument === "undefined" ||
+        ((typeof request.argument === 'undefined' ||
           request.argument === null) &&
-          typeof argument !== "undefined" &&
+          typeof argument !== 'undefined' &&
           argument !== null) ||
-        ((typeof argument === "undefined" || argument === null) &&
-          typeof request.argument !== "undefined" &&
+        ((typeof argument === 'undefined' || argument === null) &&
+          typeof request.argument !== 'undefined' &&
           request.argument !== null)
       ) {
         return false;
@@ -160,7 +160,7 @@ export class CachedRequest {
   private readonly clearRefetch$ = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
   private _expiresAt!: Date | undefined;
-  private _isStale: boolean = false;
+  private _isStale = false;
   //#endregion Properties definitions
 
   private onWindowReconnect = () => {
@@ -227,7 +227,7 @@ export class CachedRequest {
       this.refetchOnFocus(view);
     }
 
-    if (typeof lastError !== "undefined" && lastError !== null) {
+    if (typeof lastError !== 'undefined' && lastError !== null) {
       this.lastError = lastError;
       this.retry();
     }
@@ -236,7 +236,7 @@ export class CachedRequest {
   private configureRefetchInterval(
     refetchInterval?: number | Observable<unknown>
   ) {
-    if (typeof refetchInterval === "undefined" || refetchInterval === null) {
+    if (typeof refetchInterval === 'undefined' || refetchInterval === null) {
       return;
     }
     (isObservable(refetchInterval)
@@ -255,18 +255,18 @@ export class CachedRequest {
   }
 
   private refetchOnFocus(defaultWindow?: Window) {
-    defaultWindow?.addEventListener("focus", this.onWindowFocus);
+    defaultWindow?.addEventListener('focus', this.onWindowFocus);
   }
 
   private refetchOnReconnect(defaultWindow?: Window) {
-    defaultWindow?.addEventListener("online", this.onWindowReconnect);
+    defaultWindow?.addEventListener('online', this.onWindowReconnect);
   }
 
   private doRetry() {
     const { retryDelay } = this.properties;
     useRxEffect(
       interval(
-        typeof retryDelay === "function"
+        typeof retryDelay === 'function'
           ? retryDelay(this.tries)
           : retryDelay ?? 1000
       ).pipe(
@@ -283,7 +283,7 @@ export class CachedRequest {
         this.lastError = error;
         // If the tries is more than or equal to the configured tries, we trigger an error
         // call on the cached instance
-        if (!this.canRetry() && typeof this.errorCallback === "function") {
+        if (!this.canRetry() && typeof this.errorCallback === 'function') {
           this.errorCallback(error);
         } else {
           // TODO : Retry the request if it fails
@@ -308,7 +308,7 @@ export class CachedRequest {
 
   private markAsStale() {
     if (
-      typeof this.properties.staleTime === "undefined" ||
+      typeof this.properties.staleTime === 'undefined' ||
       this.properties.staleTime === null ||
       this.properties.staleTime === 0
     ) {
@@ -328,9 +328,9 @@ export class CachedRequest {
 
   private canRetry() {
     return (
-      (typeof this.properties.retries === "number" &&
+      (typeof this.properties.retries === 'number' &&
         this.tries <= this.properties.retries) ||
-      (typeof this.properties.retries === "function" &&
+      (typeof this.properties.retries === 'function' &&
         this.properties.retries(this.tries, this.lastError))
     );
   }
@@ -349,7 +349,7 @@ export class CachedRequest {
 
   expires() {
     return (
-      typeof this._expiresAt !== "undefined" &&
+      typeof this._expiresAt !== 'undefined' &&
       this._expiresAt !== null &&
       this._expiresAt.getTime() - new Date().getTime() < 0
     );
@@ -362,7 +362,7 @@ export class CachedRequest {
       return this.doRetry();
     }
     // Stop refetch observable listener
-    this.clearRefetch$!.next();
+    this.clearRefetch$?.next();
   }
 
   async refetch() {
@@ -372,7 +372,7 @@ export class CachedRequest {
       return;
     }
     // Clear refetch to stop the current refetch observable
-    this.clearRefetch$!.next();
+    this.clearRefetch$?.next();
     const { refetchInterval } = this.properties;
     // Do a request request to update the state
     await lastValueFrom(this.doRequest());
@@ -383,9 +383,9 @@ export class CachedRequest {
   }
 
   destroy() {
-    window?.removeEventListener("online", this.onWindowReconnect);
-    window?.removeEventListener("focus", this.onWindowFocus);
-    this.clearRefetch$!.next();
+    window?.removeEventListener('online', this.onWindowReconnect);
+    window?.removeEventListener('focus', this.onWindowFocus);
+    this.clearRefetch$?.next();
     this.destroy$.next();
   }
 }

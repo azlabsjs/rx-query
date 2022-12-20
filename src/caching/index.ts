@@ -7,7 +7,8 @@ export {
 } from './helpers';
 export {
     CacheQueryConfig,
-    CacheType, CachedItemType, RequestsCacheItemType
+    CacheType,
+    CachedItemType,
+    RequestsCacheItemType
 } from './types';
-
 
