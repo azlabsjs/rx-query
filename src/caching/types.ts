@@ -13,7 +13,7 @@ export type CachedItemType = {
 /**
  * @internal
  */
-export type RequestsCacheItemType = CachedItemType & {
+export type QueriesCacheItemType = CachedItemType & {
   argument: unknown;
   retry: () => void;
   setExpiresAt: () => void;

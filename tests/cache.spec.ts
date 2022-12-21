@@ -3,25 +3,25 @@
  */
 
 import { of } from 'rxjs';
-import { cacheRequest, requestsCache } from '../src';
+import { cachedQuery, queriesCache } from '../src';
 import { Requests } from '../src/base';
-import { CachedRequest, RequestsCache } from '../src/caching';
+import { CachedQuery, QueriesCache } from '../src/caching';
 
 describe('Requests cache test', () => {
-  let cache!: RequestsCache;
+  let cache!: QueriesCache;
 
   beforeEach(() => {
-    cache = requestsCache();
+    cache = queriesCache();
   });
 
   it('should create an instance of Cache class', () => {
     expect(cache).toBeTruthy();
-    expect(cache).toBeInstanceOf(RequestsCache);
+    expect(cache).toBeInstanceOf(QueriesCache);
   });
 
-  it('should test add RequestsCache.add() method and expect cache length to grow by the size of 1', () => {
+  it('should test add QueriesCache.add() method and expect cache length to grow by the size of 1', () => {
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: Requests.guid(),
         callback: () => of('Server Response'),
         properties: true,
@@ -47,7 +47,7 @@ describe('Requests cache test', () => {
       },
     };
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: Requests.guid(),
         callback: () => of('Server Response'),
         properties: true,
@@ -56,7 +56,7 @@ describe('Requests cache test', () => {
       })
     );
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: Requests.guid(),
         callback: () => of('Server Response'),
         properties: true,
@@ -82,14 +82,14 @@ describe('Requests cache test', () => {
         },
       ])
     );
-    expect(result).toBeInstanceOf(CachedRequest);
+    expect(result).toBeInstanceOf(CachedQuery);
   });
 
   it('should add a value to the cache an retrieve it using request id', () => {
     const objecId = Requests.guid();
     const objectid2 = Requests.guid();
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: objecId,
         callback: () => of('Server Response'),
         properties: true,
@@ -97,7 +97,7 @@ describe('Requests cache test', () => {
       })
     );
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: objectid2,
         callback: () => of('Server Response 2'),
         properties: true,
@@ -106,15 +106,15 @@ describe('Requests cache test', () => {
     );
     const result = cache.at(cache.indexOf(objecId));
     const result2 = cache.at(cache.indexOf(objectid2));
-    expect(result).toBeInstanceOf(CachedRequest);
-    expect(result2).toBeInstanceOf(CachedRequest);
+    expect(result).toBeInstanceOf(CachedQuery);
+    expect(result2).toBeInstanceOf(CachedQuery);
   });
 
   it('should return false if cache does not contains a given key else it returns true', () => {
     const objectid = Requests.guid();
     const objectid2 = Requests.guid();
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid,
         callback: () => of('Server Response'),
         properties: true,
@@ -123,7 +123,7 @@ describe('Requests cache test', () => {
       })
     );
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: objectid2,
         callback: () => of('Server Response 2'),
         properties: true,
@@ -138,7 +138,7 @@ describe('Requests cache test', () => {
   it('should test if the cache is empty when clear() is called', () => {
     const objectid = Requests.guid();
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid,
         callback: () => of('Server Response'),
         properties: true,
@@ -151,11 +151,11 @@ describe('Requests cache test', () => {
     expect(cache.isEmpty()).toEqual(true);
   });
 
-  it('should return false when RequestsCache.contains() is called a cache item that has been removed', () => {
+  it('should return false when QueriesCache.contains() is called a cache item that has been removed', () => {
     const objectid = Requests.guid();
     const objectid2 = Requests.guid();
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid,
         callback: () => of('Server Response 1'),
         properties: true,
@@ -164,7 +164,7 @@ describe('Requests cache test', () => {
       })
     );
     cache.add(
-      cacheRequest({
+      cachedQuery({
         objectid: objectid2,
         callback: () => of('Server Response'),
         properties: true,

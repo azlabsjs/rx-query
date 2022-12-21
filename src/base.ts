@@ -15,8 +15,8 @@ import {
   startWith,
   tap,
 } from 'rxjs';
-import { buildCacheQuery, cacheRequest, requestsCache } from './caching';
-import { useRequestSelector } from './helpers';
+import { buildCacheQuery, cachedQuery, queriesCache } from './caching';
+import { useQuerySelector } from './helpers';
 import { guid } from './internal';
 import {
   Action,
@@ -87,7 +87,7 @@ export class Requests
   private readonly dispatch$!: (action: Required<Action<unknown>>) => void;
   public readonly state$!: Observable<State>;
   // List of request cached by the current instance
-  private _cache = requestsCache();
+  private _cache = queriesCache();
   private destroy$ = new Subject<void>();
 
   // Provides an accessor to the request
@@ -212,7 +212,7 @@ export class Requests
     action: T,
     ...args_0: QueryArguments<T>
   ) {
-    return useRequestSelector(
+    return useQuerySelector(
       this.state$,
       this.cache
     )(this.dispatch(action, ...args_0));
@@ -230,8 +230,14 @@ export class Requests
   }
 
   private sendRequest(request: () => ObservableInput<unknown>, id?: string) {
+    const testFunc = (innerFunc: () => ObservableInput<unknown>) => {
+      console.log('Executing query: ', request);
+      const result = innerFunc();
+      console.log('Internal Query result', result);
+      return result;
+    };
     useRxEffect(
-      from(request()).pipe(
+      from(testFunc(request)).pipe(
         observeOn(asyncScheduler),
         map((response) => ({
           name: QUERY_RESULT_ACTION,
@@ -335,7 +341,7 @@ export class Requests
     //#region If request should be cached, we add request to cache
     if (cacheConfig) {
       this.cache.add(
-        cacheRequest({
+        cachedQuery({
           objectid: uuid,
           callback,
           properties: cacheConfig,
@@ -388,16 +394,6 @@ export class Requests
       this.dispatch$(_action as Required<Action<unknown>>);
     }
     return uuid;
-  }
-
-  /**
-   * Select a request from the state object based on the request uuid
-   *
-   * @param query
-   * @returns
-   */
-  select(query: unknown) {
-    return useRequestSelector(this.state$, this.cache)(query);
   }
 
   destroy() {

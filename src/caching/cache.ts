@@ -18,15 +18,15 @@ import {
   takeUntil,
   tap,
 } from 'rxjs';
-import { CacheQueryConfig, RequestsCacheItemType } from './types';
+import { CacheQueryConfig, QueriesCacheItemType } from './types';
 
 /**
- * Internal caching implementation of requests.
+ * Internal caching implementation of queries.
  *
  * @internal
  */
-export class RequestsCache<
-  T extends RequestsCacheItemType = RequestsCacheItemType
+export class QueriesCache<
+  T extends QueriesCacheItemType = QueriesCacheItemType
 > {
   /**
    * @internal
@@ -43,8 +43,8 @@ export class RequestsCache<
    * Removes all items from the cache system
    */
   clear() {
-    for (const request of this._state ?? []) {
-      request.destroy();
+    for (const item of this._state ?? []) {
+      item.destroy();
     }
     this._state = [];
   }
@@ -106,53 +106,53 @@ export class RequestsCache<
     const values = items.splice(index, 1);
     // When removing element from cache we call destroy method
     // in order to unsubscribe to any observable being run internally
-    for (const request of values) {
-      request.destroy();
+    for (const item of values) {
+      item.destroy();
     }
     this._state = items;
   }
 
   indexOf(argument: unknown) {
-    // First we apply an strict equality on the request id and payload against
+    // First we apply an strict equality on the query id and payload against
     // the query value
     if (isPrimitive(argument)) {
       return this._state.findIndex(
-        (request) => request.id === argument || request.argument === argument
+        (query) => query.id === argument || query.argument === argument
       );
     }
     // Case the key is not found, index will still be -1, therefore we search
-    return this._state.findIndex((request) => {
+    return this._state.findIndex((query) => {
       if (
-        ((typeof request.argument === 'undefined' ||
-          request.argument === null) &&
+        ((typeof query.argument === 'undefined' ||
+          query.argument === null) &&
           typeof argument !== 'undefined' &&
           argument !== null) ||
         ((typeof argument === 'undefined' || argument === null) &&
-          typeof request.argument !== 'undefined' &&
-          request.argument !== null)
+          typeof query.argument !== 'undefined' &&
+          query.argument !== null)
       ) {
         return false;
       }
-      return deepEqual(request.argument, argument);
+      return deepEqual(query.argument, argument);
     });
   }
 
   invalidate(argument: unknown) {
-    const cahedRequest = this.at(this.indexOf(argument));
-    if (cahedRequest) {
-      cahedRequest.setExpiresAt();
+    const cachedQuery = this.at(this.indexOf(argument));
+    if (cachedQuery) {
+      cachedQuery.setExpiresAt();
     }
   }
   //#region Miscellanous
 }
 
 /**
- * Caching object used by the { @see RequestsCache } object when handling request caching
+ * Caching object used by the { @see QueriesCache } object when handling query caching
  * refetches, and retries.
  *
  * @internal
  */
-export class CachedRequest {
+export class CachedQuery {
   //#region Properties definitions
   private tries = 0;
   private lastError!: unknown;
@@ -197,7 +197,7 @@ export class CachedRequest {
   }
   //#endregion Properties accessors
 
-  // Creates an instance of {@see CachedRequest} class
+  // Creates an instance of {@see CachedQuery} class
   constructor(
     private _id: string,
     private _argument: unknown,
@@ -286,7 +286,7 @@ export class CachedRequest {
         if (!this.canRetry() && typeof this.errorCallback === 'function') {
           this.errorCallback(error);
         } else {
-          // TODO : Retry the request if it fails
+          // TODO : Retry the query if it fails
           this.retry();
         }
         // Returns an empty Observable to swallow the error
@@ -295,12 +295,12 @@ export class CachedRequest {
       tap((response) => {
         this.lastError = undefined;
         this.lastResponse = response;
-        // Unmark the request as stale after each successful request
+        // Unmark the query as stale after each successful state
         this._isStale = false;
         if (this.refetchCallback) {
           this.refetchCallback(response);
         }
-        // Mark the request as state based on the staleTime configuration
+        // Mark the query as state based on the staleTime configuration
         this.markAsStale();
       })
     );
@@ -355,7 +355,7 @@ export class CachedRequest {
     );
   }
 
-  // Handle retry action on the cached request
+  // Handle retry action on the cached query
   retry() {
     if (this.canRetry()) {
       this.tries += 1;
@@ -374,7 +374,7 @@ export class CachedRequest {
     // Clear refetch to stop the current refetch observable
     this.clearRefetch$?.next();
     const { refetchInterval } = this.properties;
-    // Do a request request to update the state
+    // Do a query to update the state
     await lastValueFrom(this.doRequest());
     // Reconfigure the refetch action
     if (refetchInterval) {

@@ -1,7 +1,7 @@
 import { Observable, ObservableInput } from 'rxjs';
 import { CacheQueryConfig } from './caching';
 
-//#region Requests service types
+//#region queries service types
 export interface Disposable {
   destroy(): void | Promise<void>;
 }
@@ -133,7 +133,7 @@ export type QueryParameter<TFunc, TMethod extends string> = {
  */
 export type QueryClientType<TMethod extends string> = {
   /**
-   * Sends a client request to a server enpoint and returns
+   * Sends a client query to a server enpoint and returns
    * an observable of response type
    *
    * @param query
@@ -152,7 +152,7 @@ export type QueryProviderType<
   ProvidesType = any
 > = {
   /**
-   * Sends a client request to a server enpoint and returns
+   * Sends a client query to a server enpoint and returns
    * an observable of response type
    *
    * @param query

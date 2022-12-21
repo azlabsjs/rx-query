@@ -1,12 +1,12 @@
 import { Observable, finalize } from 'rxjs';
-import { CacheType, RequestsCacheItemType } from './caching';
-import { selectRequest } from './rx';
+import { CacheType, QueriesCacheItemType } from './caching';
+import { selectQuery } from './rx';
 import { QueryState, State } from './types';
 
 /**
  * @interrnal
  *
- * Creates query parameters by parsing request params options
+ * Creates query parameters by parsing query params options
  */
 export function createQueryParams<
   TQuery = string | number | Record<string, unknown>
@@ -26,18 +26,18 @@ export function createQueryParams<
 /**
  * @internal
  *
- * Provides a request selector function that select a request
+ * Provides a query selector function that select a query
  * instance based on a given criteria
  */
-export function useRequestSelector(
+export function useQuerySelector(
   ...[state$, cache]: [
     Observable<State>,
-    CacheType<RequestsCacheItemType> | undefined
+    CacheType<QueriesCacheItemType> | undefined
   ]
 ) {
   return (argument: unknown) => {
     return state$.pipe(
-      selectRequest(argument),
+      selectQuery(argument),
       finalize(() => {
         cache?.invalidate(argument);
       })

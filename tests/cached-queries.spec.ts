@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { first, interval, lastValueFrom } from 'rxjs';
-import { cacheRequest } from '../src';
+import { cachedQuery } from '../src';
 import { Requests } from '../src/base';
 
 describe('Cached request class cache tests', () => {
@@ -22,7 +22,7 @@ describe('Cached request class cache tests', () => {
         resolve([1, 2, 3, 4]);
       });
     };
-    const request = cacheRequest({
+    const request = cachedQuery({
       argument,
       objectid: Requests.guid(),
       callback: argument,
@@ -52,7 +52,7 @@ describe('Cached request class cache tests', () => {
         reject('Server Error');
       });
     };
-    const request = cacheRequest({
+    const request = cachedQuery({
       objectid: Requests.guid(),
       argument,
       callback: argument,
@@ -80,7 +80,7 @@ describe('Cached request class cache tests', () => {
       });
     };
     let refetchCount = 0;
-    const request = cacheRequest({
+    const request = cachedQuery({
       objectid: Requests.guid(),
       callback: payload,
       refetchCallback: () => {

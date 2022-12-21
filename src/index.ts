@@ -1,12 +1,12 @@
 export { createQueryManager } from './base';
 export {
     CacheQueryConfig,
-    cacheRequest,
-    requestsCache,
+    cachedQuery,
+    queriesCache,
     useDefaultCacheConfig
 } from './caching';
-export { createQueryParams, refetchQuery, useRequestSelector } from './helpers';
-export { apiResponse, apiResponseBody, selectRequest } from './rx';
+export { createQueryParams, refetchQuery, useQuerySelector } from './helpers';
+export { queryResult, selectQuery } from './rx';
 export { useQueryManager } from './singleton';
 export {
     Action,

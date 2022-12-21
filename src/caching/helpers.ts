@@ -1,9 +1,9 @@
 import { deepEqual } from '@azlabsjs/utilities';
 import { ObservableInput } from 'rxjs';
 import { QueryArguments } from '../types';
-import { CachedRequest, RequestsCache } from './cache';
+import { CachedQuery, QueriesCache } from './cache';
 import { defaultCacheConfig } from './internal';
-import { CacheQueryConfig, RequestsCacheItemType } from './types';
+import { CacheQueryConfig, QueriesCacheItemType } from './types';
 
 /**
  * @interface
@@ -13,11 +13,10 @@ export function useDefaultCacheConfig() {
 }
 
 /**
- * Cached requests factory function for creating { @see CachedRequest } instances
- * @internal
- * @param prop
+ * Cached queries factory function for creating { @see CachedQuery } instances
+ * 
  */
-export function cacheRequest(prop: {
+export function cachedQuery(prop: {
   objectid: string;
   properties: CacheQueryConfig | boolean;
   callback: () => ObservableInput<unknown>;
@@ -26,7 +25,7 @@ export function cacheRequest(prop: {
   window?: Window;
   lastError?: unknown;
   argument?: unknown;
-}): RequestsCacheItemType {
+}): QueriesCacheItemType {
   const {
     callback,
     refetchCallback,
@@ -36,7 +35,7 @@ export function cacheRequest(prop: {
     argument,
     errorCallback,
   } = prop;
-  return new CachedRequest(
+  return new CachedQuery(
     objectid,
     argument,
     typeof properties === 'boolean' ||
@@ -54,12 +53,12 @@ export function cacheRequest(prop: {
 }
 
 /**
- * Creates a requests cache instance
+ * Creates a queries cache instance
  *
  * @internal
  */
-export function requestsCache() {
-  return new RequestsCache();
+export function queriesCache() {
+  return new QueriesCache();
 }
 
 /**

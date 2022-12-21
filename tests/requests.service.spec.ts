@@ -14,7 +14,7 @@ import {
   throwError,
 } from 'rxjs';
 import { Requests } from '../src/base';
-import { apiResponse, firstWhere } from '../src/rx';
+import { firstWhere, queryResult } from '../src/rx';
 import { useHTTPActionQuery } from './helpers';
 
 const testResult = {
@@ -92,7 +92,7 @@ describe('Requests', () => {
       },
     });
     service
-      .select(service.dispatch(query$))
+      .invoke(query$)
       .pipe(
         filter((state) => state.pending === false),
         map((state) => {
@@ -102,20 +102,18 @@ describe('Requests', () => {
       .subscribe();
 
     service
-      .select(
-        service.dispatch(
-          useHTTPActionQuery(queryBackend, {
-            name: '[get_api/v1/post/:post_id/comments]',
-            payload: {
-              params: {
-                post_id: 1,
-              },
-              options: {
-                responseType: 'json',
-              },
+      .invoke(
+        useHTTPActionQuery(queryBackend, {
+          name: '[get_api/v1/post/:post_id/comments]',
+          payload: {
+            params: {
+              post_id: 1,
             },
-          })
-        )
+            options: {
+              responseType: 'json',
+            },
+          },
+        })
       )
       .pipe(
         firstWhere((state) => state.pending === false),
@@ -131,18 +129,16 @@ describe('Requests', () => {
 
   it('should call the provider function passed as parameter and update the requests state with the result of the function call', async () => {
     service
-      .select(
-        service.dispatch(
-          (path: string, method: string) => {
-            console.log(path, method);
-            return of(fnTestResult);
-          },
-          'api/v1/books',
-          'GET'
-        )
+      .invoke(
+        (path: string, method: string) => {
+          console.log(path, method);
+          return of(fnTestResult);
+        },
+        'api/v1/books',
+        'GET'
       )
       .pipe(
-        apiResponse(),
+        queryResult(),
         map((response) => {
           expect(response).toEqual(fnTestResult);
         })
@@ -157,54 +153,50 @@ describe('Requests', () => {
       new Promise((resolve) => resolve(response));
     let executionCount = 0;
     service
-      .select(
-        service.dispatch(
-          (path: string, method: string) => {
-            console.log(path, method);
-            executionCount = executionCount + 1;
-            return createResponse({
-              title: 'In publishing and graphic design',
-              content:
-                'Lorem ipsum is a placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before final copy is available',
-              createdAt: '2022-11-20 18:20',
-            });
-          },
-          'api/v1/books',
-          'GET',
-          {
-            cacheQuery: true,
-            staleTime: 2000,
-            refetchInterval: 100,
-            name: 'get_books_component',
-          }
-        )
+      .invoke(
+        (path: string, method: string) => {
+          console.log(path, method);
+          executionCount = executionCount + 1;
+          return createResponse({
+            title: 'In publishing and graphic design',
+            content:
+              'Lorem ipsum is a placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before final copy is available',
+            createdAt: '2022-11-20 18:20',
+          });
+        },
+        'api/v1/books',
+        'GET',
+        {
+          cacheQuery: true,
+          staleTime: 2000,
+          refetchInterval: 100,
+          name: 'get_books_component',
+        }
       )
-      .pipe(apiResponse())
+      .pipe(queryResult())
       .subscribe();
     service
-      .select(
-        service.dispatch(
-          (path: string, method: string) => {
-            console.log(path, method);
-            executionCount = executionCount + 1;
-            return createResponse({
-              title: 'In publishing and graphic design',
-              content:
-                'Lorem ipsum is a placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before final copy is available',
-              createdAt: '2022-11-20 18:20',
-            });
-          },
-          'api/v1/books',
-          'GET',
-          {
-            cacheQuery: true,
-            staleTime: 2000,
-            refetchInterval: 100,
-            name: 'get_books_component',
-          }
-        )
+      .invoke(
+        (path: string, method: string) => {
+          console.log(path, method);
+          executionCount = executionCount + 1;
+          return createResponse({
+            title: 'In publishing and graphic design',
+            content:
+              'Lorem ipsum is a placeholder text commonly used to demonstrate the visual form of a document or a typeface without relying on meaningful content. Lorem ipsum may be used as a placeholder before final copy is available',
+            createdAt: '2022-11-20 18:20',
+          });
+        },
+        'api/v1/books',
+        'GET',
+        {
+          cacheQuery: true,
+          staleTime: 2000,
+          refetchInterval: 100,
+          name: 'get_books_component',
+        }
       )
-      .pipe(apiResponse())
+      .pipe(queryResult())
       .subscribe();
     return await lastValueFrom(
       interval(3000).pipe(
