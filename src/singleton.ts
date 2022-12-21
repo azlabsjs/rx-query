@@ -11,10 +11,10 @@ import { QueryArguments, QueryManager, QueryState } from './types';
  */
 let instance$!: QueryManager<Observable<QueryState>>;
 
-type InvokeQueryType = <T extends (...args: any) => void>(
+type InvokeQueryType<R> = <T extends (...args: any) => void>(
   action: T,
   ...args: [...QueryArguments<T>]
-) => void;
+) => R;
 
 /**
  * Provides a query manager singleton that might be used to handle queries of the application
@@ -47,5 +47,6 @@ export function useQueryManager() {
     });
     instance$ = query$ as unknown as QueryManager<Observable<QueryState>>;
   }
-  return instance$ as QueryManager<Observable<QueryState>> & InvokeQueryType;
+  return instance$ as QueryManager<Observable<QueryState>> &
+    InvokeQueryType<Observable<QueryState>>;
 }
