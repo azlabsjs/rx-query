@@ -1,7 +1,7 @@
 import { Observable, finalize } from 'rxjs';
 import { CacheType, QueriesCacheItemType } from './caching';
 import { selectQuery } from './rx';
-import { QueryState, State } from './types';
+import { QueryState, QueryStates, State } from './types';
 
 /**
  * @interrnal
@@ -52,4 +52,26 @@ export function refetchQuery(query: QueryState) {
   if (typeof query.refetch === 'function') {
     query.refetch();
   }
+}
+
+/**
+ * Global function that allows developper to check if a query is
+ * still runing and has not yet complete or in pending state
+ */
+export function queryIsLoading(query: QueryState) {
+  return query.state === QueryStates.LOADING || query.pending === true;
+}
+
+/**
+ * Check if the query completed with error
+ */
+export function queryHasError(query: QueryState) {
+  return query.state === QueryStates.ERROR;
+}
+
+/**
+ * Global function to check if the query is completed
+ */
+export function queryCompleted(query: QueryState) {
+  return query.state === QueryStates.SUCCESS;
 }

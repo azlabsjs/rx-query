@@ -5,7 +5,11 @@ export {
     queriesCache,
     useDefaultCacheConfig
 } from './caching';
-export { createQueryParams, refetchQuery, useQuerySelector } from './helpers';
+export {
+    createQueryParams, queryCompleted,
+    queryHasError, queryIsLoading, refetchQuery,
+    useQuerySelector
+} from './helpers';
 export { queryResult, selectQuery } from './rx';
 export { useQueryManager } from './singleton';
 export {
