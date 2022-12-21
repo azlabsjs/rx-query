@@ -100,7 +100,9 @@ export class Requests
   constructor() {
     [this.state$, this.dispatch$] = useRxReducer(
       (state, action: Required<Action<unknown>>) => {
-        if (action.name.toLocaleLowerCase() === QUERY_RESULT_ACTION) {
+        // Compare the transformed to uppercase value of both action name and the query result
+        // action to make sure no case error occured
+        if (action.name?.toUpperCase() === QUERY_RESULT_ACTION.toUpperCase()) {
           const { payload: resultPayload } = action as Action<QueryState>;
           const {
             id,
@@ -230,14 +232,8 @@ export class Requests
   }
 
   private sendRequest(request: () => ObservableInput<unknown>, id?: string) {
-    const testFunc = (innerFunc: () => ObservableInput<unknown>) => {
-      console.log('Executing query: ', request);
-      const result = innerFunc();
-      console.log('Internal Query result', result);
-      return result;
-    };
     useRxEffect(
-      from(testFunc(request)).pipe(
+      from(request()).pipe(
         observeOn(asyncScheduler),
         map((response) => ({
           name: QUERY_RESULT_ACTION,
@@ -281,7 +277,7 @@ export class Requests
     let cached = false;
     let uuid!: string;
     // TODO: finds a meaninful action name for function dispatch
-    const actionType = '[requests_fn_action]';
+    const actionType = '[QUERY_FUNCTION_ACTION]';
     //#region caching request
     const cacheConfig = (
       (action as (...args: any) => void).length < args.length
