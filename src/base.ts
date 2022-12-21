@@ -28,6 +28,7 @@ import {
   QueryManager,
   QueryPayload,
   QueryState,
+  QueryStates,
   State,
 } from './types';
 
@@ -172,7 +173,7 @@ export class Requests
         const req = {
           id,
           pending: true,
-          state: 'loading',
+          state: QueryStates.LOADING,
           argument,
           response: undefined,
           timestamps: {
@@ -241,7 +242,7 @@ export class Requests
             id,
             response,
             ok: true,
-            state: 'success',
+            state: QueryStates.SUCCESS,
           } as QueryState,
         })),
         catchError((error) => {
@@ -259,7 +260,7 @@ export class Requests
                 id,
                 error,
                 ok: false,
-                state: 'error',
+                state: QueryStates.ERROR,
               } as QueryState,
             });
           }
@@ -359,7 +360,7 @@ export class Requests
                 id: uuid,
                 error,
                 ok: false,
-                state: 'error',
+                state: QueryStates.ERROR,
               } as QueryState,
             });
           },

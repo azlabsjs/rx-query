@@ -21,6 +21,7 @@ export {
     QueryParameter,
     QueryProviderType,
     QueryState,
+    QueryStates,
     QueryType,
     State
 } from './types';

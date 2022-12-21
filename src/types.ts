@@ -2,6 +2,16 @@ import { Observable, ObservableInput } from 'rxjs';
 import { CacheQueryConfig } from './caching';
 
 //#region queries service types
+/**
+ * @description Enumerated value of the query object state
+ */
+export enum QueryStates {
+  LOADING = 'loading',
+  SUCCESS = 'success',
+  ERROR = 'error',
+  REVALIDATE = 'revalidate'
+}
+
 export interface Disposable {
   destroy(): void | Promise<void>;
 }
@@ -12,7 +22,7 @@ export interface Disposable {
 export type QueryState<TPayload = unknown> = {
   id: string;
   pending: boolean;
-  state: 'success' | 'revalidate' | 'error' | 'loading';
+  state: QueryStates;
   argument: TPayload;
   // Refetch the query state
   refetch: () => void;
