@@ -74,7 +74,7 @@
     },
     "dependencies": {
         "@azlabsjs/functional": "^0.1.11",
-        "@azlabsjs/rx-hooks": "^0.1.15",
+        "@azlabsjs/rx-hooks": "^0.2.0",
         "@azlabsjs/utilities": "^0.1.11"
     },
     "publishConfig": {

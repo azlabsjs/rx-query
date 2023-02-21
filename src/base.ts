@@ -1,19 +1,16 @@
-import { memoize } from '@azlabsjs/functional';
-import { useRxEffect } from '@azlabsjs/rx-hooks';
+import { useRxEffect, useRxReducer } from '@azlabsjs/rx-hooks';
 import {
-  EMPTY,
-  Observable,
-  ObservableInput,
-  ReplaySubject,
-  Subject,
   asyncScheduler,
   catchError,
+  EMPTY,
   from,
   map,
+  Observable,
+  ObservableInput,
   observeOn,
   of,
-  startWith,
-  tap,
+  Subject,
+  tap
 } from 'rxjs';
 import { buildCacheQuery, cachedQuery, queriesCache } from './caching';
 import { useQuerySelector } from './helpers';
@@ -29,54 +26,12 @@ import {
   QueryPayload,
   QueryState,
   QueryStates,
-  State,
+  State
 } from './types';
 
 //@internal
 const QUERY_RESULT_ACTION = '[REQUEST_RESULT_ACTION]';
 const NOQUERYACTION = Symbol('__NO__QUERY__ACTION__');
-
-export type UseReducerReturnType<T, ActionType> = readonly [
-  Observable<T>,
-  (state: ActionType) => unknown
-];
-
-export function useRxReducer<T, ActionType = any>(
-  reducer: (state: T, action: ActionType) => T,
-  initial: T,
-  init?: (_initial: unknown) => T
-) {
-  // Initialize the state observable and the _lastState variable that will hold the last
-  // state of the observable
-  let _lastState!: T;
-  const _state$ = new ReplaySubject<T>(1);
-
-  // Provides a memoization implementation arround the inital
-  const _initcb = memoize(
-    init
-      ? (_initial: unknown) => {
-          _lastState = init(_initial);
-          return _lastState;
-        }
-      : (_initial: unknown) => {
-          _lastState = _initial as T;
-          return _lastState;
-        }
-  );
-
-  /**
-   * @description Action dispatcher
-   */
-  const dispatch = (action: ActionType) => {
-    _lastState = reducer(_lastState as T, action as ActionType) as T;
-    _state$.next(_lastState);
-  };
-
-  return [
-    _state$.pipe(startWith(_initcb(initial))),
-    dispatch,
-  ] as UseReducerReturnType<T, ActionType>;
-}
 
 export class Requests
   implements
