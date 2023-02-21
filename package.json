@@ -17,7 +17,6 @@
         "size": "size-limit",
         "analyze": "size-limit --why",
         "test": "jest",
-        "betterer": "betterer --strict",
         "prettier": "prettier --write src/**/*"
     },
     "husky": {
@@ -52,8 +51,6 @@
     ],
     "devDependencies": {
         "@azlabsjs/ts-build": "^0.2.1",
-        "@betterer/cli": "^5.4.0",
-        "@betterer/typescript": "^5.4.0",
         "@size-limit/preset-small-lib": "^8.1.0",
         "@types/jest": "^29.2.4",
         "@typescript-eslint/eslint-plugin": "^5.47.0",
@@ -73,7 +70,7 @@
         "rxjs": "^7.8.0"
     },
     "dependencies": {
-        "@azlabsjs/functional": "^0.1.11",
+        "@azlabsjs/functional": "^0.2.0",
         "@azlabsjs/rx-hooks": "^0.2.0",
         "@azlabsjs/utilities": "^0.1.11"
     },
