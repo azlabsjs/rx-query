@@ -123,8 +123,7 @@ export class QueriesCache<
     // Case the key is not found, index will still be -1, therefore we search
     return this._state.findIndex((query) => {
       if (
-        ((typeof query.argument === 'undefined' ||
-          query.argument === null) &&
+        ((typeof query.argument === 'undefined' || query.argument === null) &&
           typeof argument !== 'undefined' &&
           argument !== null) ||
         ((typeof argument === 'undefined' || argument === null) &&
@@ -219,11 +218,9 @@ export class CachedQuery {
       this.configureRefetchInterval(refetchInterval);
     }
     if (refetchOnReconnect) {
-      // TODO: Inject the window instance in the constructor and use it in the current call
       this.refetchOnReconnect(view);
     }
     if (refetchOnWindowFocus) {
-      // TODO: Inject the window instance in the constructor and use it in the current call
       this.refetchOnFocus(view);
     }
 
@@ -233,12 +230,85 @@ export class CachedQuery {
     }
   }
 
+  setError(error: unknown) {
+    this.lastError = error;
+  }
+
+  setExpiresAt() {
+    // Case the cache time equals infinity we, the expiresAt is not set
+    if (this.properties?.cacheTime === Infinity) {
+      return;
+    }
+    const date = new Date();
+    date.setMilliseconds(
+      date.getMilliseconds() + (this.properties?.cacheTime ?? 500000)
+    );
+    this._expiresAt = date;
+  }
+
+  expires() {
+    return (
+      typeof this._expiresAt !== 'undefined' &&
+      this._expiresAt !== null &&
+      this._expiresAt.getTime() - new Date().getTime() < 0
+    );
+  }
+
+  // Handle retry action on the cached query
+  retry() {
+    if (this.canRetry()) {
+      this.tries += 1;
+      return this.doRetry();
+    }
+    // Stop refetch observable listener
+    this.clearRefetch$?.next();
+  }
+
+  async refetch() {
+    // If the data is not marked as stale, we don't update
+    // the state of the data
+    if (!this.isStale) {
+      return;
+    }
+    // Clear refetch to stop the current refetch observable
+    this.clearRefetch$?.next();
+    const { refetchInterval } = this.properties;
+    // Do a query to update the state
+    await lastValueFrom(this.doRequest());
+    // Reconfigure the refetch action
+    if (refetchInterval) {
+      this.configureRefetchInterval(refetchInterval);
+    }
+  }
+
+  destroy() {
+    window?.removeEventListener('online', this.onWindowReconnect);
+    window?.removeEventListener('focus', this.onWindowFocus);
+    this.clearRefetch$?.next();
+    this.destroy$.next();
+  }
+
+  // #region private methods
+
   private configureRefetchInterval(
     refetchInterval?: number | Observable<unknown>
   ) {
-    if (typeof refetchInterval === 'undefined' || refetchInterval === null) {
+    const intervalType = typeof refetchInterval;
+    if (intervalType === 'undefined' || refetchInterval === null) {
       return;
     }
+
+    // Case the interval Type is number and refetchInterval less than 0
+    // we do not refetch cached values
+    if (intervalType === 'number' && (refetchInterval as number) < 0) {
+      return;
+    }
+
+    // Case the refetchInterval equals to Infinity we do not refetch cached values
+    if (intervalType === 'number' && (refetchInterval as number) === Infinity) {
+      return;
+    }
+
     (isObservable(refetchInterval)
       ? refetchInterval
       : interval(refetchInterval)
@@ -334,58 +404,5 @@ export class CachedQuery {
         this.properties.retries(this.tries, this.lastError))
     );
   }
-
-  setError(error: unknown) {
-    this.lastError = error;
-  }
-
-  setExpiresAt() {
-    const date = new Date();
-    date.setMilliseconds(
-      date.getMilliseconds() + (this.properties?.cacheTime ?? 500000)
-    );
-    this._expiresAt = date;
-  }
-
-  expires() {
-    return (
-      typeof this._expiresAt !== 'undefined' &&
-      this._expiresAt !== null &&
-      this._expiresAt.getTime() - new Date().getTime() < 0
-    );
-  }
-
-  // Handle retry action on the cached query
-  retry() {
-    if (this.canRetry()) {
-      this.tries += 1;
-      return this.doRetry();
-    }
-    // Stop refetch observable listener
-    this.clearRefetch$?.next();
-  }
-
-  async refetch() {
-    // If the data is not marked as stale, we don't update
-    // the state of the data
-    if (!this.isStale) {
-      return;
-    }
-    // Clear refetch to stop the current refetch observable
-    this.clearRefetch$?.next();
-    const { refetchInterval } = this.properties;
-    // Do a query to update the state
-    await lastValueFrom(this.doRequest());
-    // Reconfigure the refetch action
-    if (refetchInterval) {
-      this.configureRefetchInterval(refetchInterval);
-    }
-  }
-
-  destroy() {
-    window?.removeEventListener('online', this.onWindowReconnect);
-    window?.removeEventListener('focus', this.onWindowFocus);
-    this.clearRefetch$?.next();
-    this.destroy$.next();
-  }
+  // #endregion private methods
 }

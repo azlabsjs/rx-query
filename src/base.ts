@@ -166,16 +166,6 @@ export class Requests
     );
   }
 
-  invoke<T extends (...args: any) => void>(
-    action: T,
-    ...args_0: QueryArguments<T>
-  ) {
-    return useQuerySelector(
-      this.state$,
-      this.cache
-    )(this.dispatch(action, ...args_0));
-  }
-
   /**
    * Static function for creating a request uuid that is
    * used to uniquely identify the request in the store
@@ -332,6 +322,16 @@ export class Requests
       } as Required<Action<QueryPayload>>,
       cached,
     ];
+  }
+
+  invoke<T extends (...args: any) => void>(
+    action: T,
+    ...args_0: QueryArguments<T>
+  ) {
+    return useQuerySelector(
+      this.state$,
+      this.cache
+    )(this.dispatch(action, ...args_0));
   }
 
   // Dispatch method implementation

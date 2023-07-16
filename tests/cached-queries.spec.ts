@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { first, interval, lastValueFrom } from 'rxjs';
+import { first, interval, lastValueFrom, of } from 'rxjs';
 import { cachedQuery } from '../src';
 import { Requests } from '../src/base';
 
@@ -95,5 +95,80 @@ describe('Cached request class cache tests', () => {
     await lastValueFrom(interval(2000).pipe(first()));
     request.destroy();
     expect(refetchCount).toEqual(1);
+  });
+
+
+  //
+  it('should not call refetch callback when Infinity is passed as refetchInterval', async () => {
+    let requestRefetchCount = 0;
+    let request2RefetchCount = 0;
+    const request = cachedQuery({
+      objectid: Requests.guid(),
+      callback: () => {
+        return of('Called async action...')
+      },
+      refetchCallback: () => {
+        requestRefetchCount++;
+      },
+      properties: {
+        refetchInterval: Infinity
+      },
+    });
+
+    const request2 = cachedQuery({
+      objectid: Requests.guid(),
+      callback: () => {
+        return of('Called async action...')
+      },
+      refetchCallback: () => {
+        request2RefetchCount++;
+      },
+      properties: {
+        refetchInterval: 500
+      },
+    });
+
+    await lastValueFrom(interval(2000).pipe(first()));
+    request.destroy();
+    request2.destroy();
+    expect(requestRefetchCount).toEqual(0);
+    expect(request2RefetchCount).toBeGreaterThan(0);
+  });
+
+  //
+  it('should not call refetch callback when number less than 0 is passed as refetchInterval', async () => {
+    let requestRefetchCount = 0;
+    let request2RefetchCount = 0;
+    const request = cachedQuery({
+      objectid: Requests.guid(),
+      callback: () => {
+        return of('Called async action...')
+      },
+      refetchCallback: () => {
+        requestRefetchCount++;
+      },
+      properties: {
+        refetchInterval: -1
+      },
+    });
+
+    const request2 = cachedQuery({
+      objectid: Requests.guid(),
+      callback: () => {
+        return of('Called async action...')
+      },
+      refetchCallback: () => {
+        request2RefetchCount++;
+      },
+      properties: {
+        refetchInterval: 500
+      },
+    });
+
+    await lastValueFrom(interval(2000).pipe(first()));
+    request.destroy();
+    request2.destroy();
+    expect(requestRefetchCount).toEqual(0);
+    expect(request2RefetchCount).toEqual(3);
   });
 });

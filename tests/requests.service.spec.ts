@@ -101,20 +101,19 @@ describe('Requests', () => {
       )
       .subscribe();
 
+    const query2$ = useHTTPActionQuery(queryBackend, {
+      name: '[get_api/v1/post/:post_id/comments]',
+      payload: {
+        params: {
+          post_id: 1,
+        },
+        options: {
+          responseType: 'json',
+        },
+      },
+    });
     service
-      .invoke(
-        useHTTPActionQuery(queryBackend, {
-          name: '[get_api/v1/post/:post_id/comments]',
-          payload: {
-            params: {
-              post_id: 1,
-            },
-            options: {
-              responseType: 'json',
-            },
-          },
-        })
-      )
+      .invoke(query2$)
       .pipe(
         firstWhere((state) => state.pending === false),
         map((state) => {

@@ -62,7 +62,7 @@ export function queriesCache() {
 }
 
 /**
- * @inteernal
+ * @internal
  */
 export function buildCacheQuery<T extends (...args: any) => any>(
   argument: [string, T, ...QueryArguments<T>],
