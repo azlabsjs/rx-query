@@ -48,9 +48,27 @@ export function useQuerySelector(
 /**
  * Refetch a given query instance
  */
-export function refetchQuery(query: QueryState) {
-  if (typeof query.refetch === 'function') {
+export function refetchQuery<T extends Record<string, unknown>>(query: T) {
+  if (
+    typeof query === 'object' &&
+    query !== null &&
+    typeof query['refetch'] === 'function'
+  ) {
     query.refetch();
+  }
+}
+
+/**
+ * Invalidate query instance if exists. This action will remove item from cache
+ * an stop any ongoing request to refetch the cached query in background
+ */
+export function invalidateQuery<T extends Record<string, unknown>>(query: T) {
+  if (
+    typeof query === 'object' &&
+    query !== null &&
+    typeof query.invalidate === 'function'
+  ) {
+    query.invalidate();
   }
 }
 

@@ -24,8 +24,18 @@ export type QueryState<TPayload = unknown> = {
   pending: boolean;
   state: QueryStates;
   argument: TPayload;
-  // Refetch the query state
+
+  /**
+   * Performs a background refetch of the query response
+   */
   refetch: () => void;
+
+  /**
+   * Invalidate the cached query. Once the query is invalidated,
+   * any subsequent call to fetch a new query response should not
+   * provide from cache
+   */
+  invalidate: () => void;
 
   // Optional properties
   response?: unknown;

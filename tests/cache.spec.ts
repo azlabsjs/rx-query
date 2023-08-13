@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import { of } from 'rxjs';
+import { firstValueFrom, forkJoin, of, tap, timer } from 'rxjs';
 import { cachedQuery, queriesCache } from '../src';
 import { Requests } from '../src/base';
 import { CachedQuery, QueriesCache } from '../src/caching';
@@ -63,25 +63,23 @@ describe('Requests cache test', () => {
         refetchCallback: () => {},
       })
     );
-    const result = cache.at(
-      cache.indexOf([
-        'get_api/v1/comments:post_id',
-        {
-          method: 'GET',
-          body: {
-            _query: JSON.stringify({
-              where: [
-                ['firstname', 'like', 'Az%'],
-                ['lastname', 'like', '%Sidoine%'],
-              ],
-            }),
-          },
-          params: {
-            post_id: 23,
-          },
+    const result = cache.get([
+      'get_api/v1/comments:post_id',
+      {
+        method: 'GET',
+        body: {
+          _query: JSON.stringify({
+            where: [
+              ['firstname', 'like', 'Az%'],
+              ['lastname', 'like', '%Sidoine%'],
+            ],
+          }),
         },
-      ])
-    );
+        params: {
+          post_id: 23,
+        },
+      },
+    ]);
     expect(result).toBeInstanceOf(CachedQuery);
   });
 
@@ -104,8 +102,8 @@ describe('Requests cache test', () => {
         refetchCallback: () => {},
       })
     );
-    const result = cache.at(cache.indexOf(objecId));
-    const result2 = cache.at(cache.indexOf(objectid2));
+    const result = cache.get(objecId);
+    const result2 = cache.get(objectid2);
     expect(result).toBeInstanceOf(CachedQuery);
     expect(result2).toBeInstanceOf(CachedQuery);
   });
@@ -130,9 +128,9 @@ describe('Requests cache test', () => {
         refetchCallback: () => {},
       })
     );
-    expect(cache.contains(Requests.guid())).toEqual(false);
-    expect(cache.contains('Hello World!')).toEqual(true);
-    expect(cache.contains(objectid)).toEqual(true);
+    expect(cache.has(Requests.guid())).toEqual(false);
+    expect(cache.has('Hello World!')).toEqual(true);
+    expect(cache.has(objectid)).toEqual(true);
   });
 
   it('should test if the cache is empty when clear() is called', () => {
@@ -172,9 +170,43 @@ describe('Requests cache test', () => {
       })
     );
 
-    cache.removeAt(cache.indexOf('Hello World!'));
+    cache.remove('Hello World!');
     expect(cache.length).toEqual(1);
     expect(cache.get('Hello World!')).toBeUndefined();
-    expect(cache.contains(objectid2)).toEqual(true);
+    expect(cache.has(objectid2)).toEqual(true);
+  });
+
+  it('should not call fetchCallback if item is invalidated and remove item from cache', async () => {
+    let requestRefetchCount = 0;
+    const objectid = Requests.guid();
+    const request = cachedQuery({
+      objectid,
+      callback: () => {
+        return of('Called async action...');
+      },
+      refetchCallback: () => {
+        requestRefetchCount++;
+      },
+      properties: {
+        refetchInterval: 1000,
+      },
+    });
+    cache.add(request);
+
+    await firstValueFrom(
+      forkJoin([
+        timer(1500).pipe(
+          tap(() => {
+            cache.invalidate(objectid);
+          })
+        ),
+        timer(3000),
+      ]).pipe(
+        tap(() => {
+          expect(cache.get(objectid)).toBeUndefined();
+          expect(requestRefetchCount).toEqual(1);
+        })
+      )
+    );
   });
 });

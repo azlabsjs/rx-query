@@ -63,7 +63,7 @@ export class QueriesCache<
    *
    * @param argument
    */
-  contains(argument: unknown) {
+  has(argument: unknown) {
     return this.indexOf(argument) !== -1;
   }
 
@@ -95,13 +95,13 @@ export class QueriesCache<
   }
 
   //#region Miscellanous
-  at(index: number) {
+  private at(index: number) {
     return index === -1 || index > this._state.length - 1
       ? undefined
       : this._state[index];
   }
 
-  removeAt(index: number) {
+  private removeAt(index: number) {
     const items = [...this._state];
     const values = items.splice(index, 1);
     // When removing element from cache we call destroy method
@@ -112,7 +112,7 @@ export class QueriesCache<
     this._state = items;
   }
 
-  indexOf(argument: unknown) {
+  private indexOf(argument: unknown) {
     // First we apply an strict equality on the query id and payload against
     // the query value
     if (isPrimitive(argument)) {
@@ -137,9 +137,20 @@ export class QueriesCache<
   }
 
   invalidate(argument: unknown) {
-    const cachedQuery = this.at(this.indexOf(argument));
-    if (cachedQuery) {
-      cachedQuery.setExpiresAt();
+    const _index = this.indexOf(argument);
+    if (_index !== -1) {
+      const cachedQuery = this.at(_index);
+      cachedQuery?.invalidate();
+      this.removeAt(_index);
+    }
+  }
+
+  prune() {
+    for (const value of this._state) {
+      if (value.expires()) {
+        value?.destroy();
+        this.remove(value);
+      }
     }
   }
   //#region Miscellanous
@@ -151,7 +162,7 @@ export class QueriesCache<
  *
  * @internal
  */
-export class CachedQuery {
+export class CachedQuery implements QueriesCacheItemType {
   //#region Properties definitions
   private tries = 0;
   private lastError!: unknown;
@@ -234,12 +245,8 @@ export class CachedQuery {
     this.lastError = error;
   }
 
-  setExpiresAt() {
-    // Case the cache time equals infinity we, the expiresAt is not set
-    if (this.properties?.cacheTime === Infinity) {
-      return;
-    }
-    const date = new Date();
+  setExpiresAt(date?: Date) {
+    date = date ?? new Date();
     date.setMilliseconds(
       date.getMilliseconds() + (this.properties?.cacheTime ?? 500000)
     );
@@ -279,6 +286,11 @@ export class CachedQuery {
     if (refetchInterval) {
       this.configureRefetchInterval(refetchInterval);
     }
+  }
+
+  invalidate() {
+    this.setExpiresAt();
+    this.destroy();
   }
 
   destroy() {

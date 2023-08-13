@@ -1,8 +1,17 @@
 /**
  * @jest-environment jsdom
  */
-import { first, interval, lastValueFrom, of } from 'rxjs';
-import { cachedQuery } from '../src';
+import {
+  first,
+  firstValueFrom,
+  forkJoin,
+  interval,
+  lastValueFrom,
+  of,
+  tap,
+  timer,
+} from 'rxjs';
+import { cachedQuery, invalidateQuery } from '../src';
 import { Requests } from '../src/base';
 
 describe('Cached request class cache tests', () => {
@@ -97,7 +106,6 @@ describe('Cached request class cache tests', () => {
     expect(refetchCount).toEqual(1);
   });
 
-
   //
   it('should not call refetch callback when Infinity is passed as refetchInterval', async () => {
     let requestRefetchCount = 0;
@@ -105,26 +113,26 @@ describe('Cached request class cache tests', () => {
     const request = cachedQuery({
       objectid: Requests.guid(),
       callback: () => {
-        return of('Called async action...')
+        return of('Called async action...');
       },
       refetchCallback: () => {
         requestRefetchCount++;
       },
       properties: {
-        refetchInterval: Infinity
+        refetchInterval: Infinity,
       },
     });
 
     const request2 = cachedQuery({
       objectid: Requests.guid(),
       callback: () => {
-        return of('Called async action...')
+        return of('Called async action...');
       },
       refetchCallback: () => {
         request2RefetchCount++;
       },
       properties: {
-        refetchInterval: 500
+        refetchInterval: 500,
       },
     });
 
@@ -142,26 +150,26 @@ describe('Cached request class cache tests', () => {
     const request = cachedQuery({
       objectid: Requests.guid(),
       callback: () => {
-        return of('Called async action...')
+        return of('Called async action...');
       },
       refetchCallback: () => {
         requestRefetchCount++;
       },
       properties: {
-        refetchInterval: -1
+        refetchInterval: -1,
       },
     });
 
     const request2 = cachedQuery({
       objectid: Requests.guid(),
       callback: () => {
-        return of('Called async action...')
+        return of('Called async action...');
       },
       refetchCallback: () => {
         request2RefetchCount++;
       },
       properties: {
-        refetchInterval: 500
+        refetchInterval: 500,
       },
     });
 
@@ -170,5 +178,32 @@ describe('Cached request class cache tests', () => {
     request2.destroy();
     expect(requestRefetchCount).toEqual(0);
     expect(request2RefetchCount).toEqual(3);
+  });
+
+  it('should not call fetchCallback if item is invalidated, will call refetch only once', async () => {
+    let requestRefetchCount = 0;
+    const request = cachedQuery({
+      objectid: Requests.guid(),
+      callback: () => {
+        return of('Called async action...');
+      },
+      refetchCallback: () => {
+        requestRefetchCount++;
+      },
+      properties: {
+        refetchInterval: 1000,
+      },
+    });
+
+    await firstValueFrom(
+      forkJoin([
+        timer(1500).pipe(tap(() => invalidateQuery(request))),
+        timer(3000),
+      ]).pipe(
+        tap(() => {
+          expect(requestRefetchCount).toEqual(1);
+        })
+      )
+    );
   });
 });

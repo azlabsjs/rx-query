@@ -10,7 +10,7 @@ import {
   observeOn,
   of,
   Subject,
-  tap
+  tap,
 } from 'rxjs';
 import { buildCacheQuery, cachedQuery, queriesCache } from './caching';
 import { useQuerySelector } from './helpers';
@@ -26,7 +26,7 @@ import {
   QueryPayload,
   QueryState,
   QueryStates,
-  State
+  State,
 } from './types';
 
 //@internal
@@ -138,6 +138,9 @@ export class Requests
           // that allows developpers to fetch the request
           refetch: () => {
             this.cache.get(id)?.refetch();
+          },
+          invalidate: () => {
+            this.cache?.invalidate(id);
           },
         } as QueryState;
         // We returns the currrent state adding the current request with a
