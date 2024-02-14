@@ -42,19 +42,20 @@ export function useQueryManager(logger?: Logger) {
   }
 
   if (instance === null || typeof instance === 'undefined') {
-    const closure = createClosure(createQueryManager(logger));
+    const _instance = createQueryManager(logger);
+    const closure = createClosure(_instance);
 
     // define `invoke` method on the closure instance
     Object.defineProperty(closure, 'invoke', {
       value: <T extends (...args: any) => void>(
         action: T,
         ...args: [...QueryArguments<T>]
-      ) => instance.invoke(action, ...args),
+      ) => _instance.invoke(action, ...args),
     });
 
     // define `destroy` method on the closure instance
     Object.defineProperty(closure, 'destroy', {
-      value: () => instance.destroy(),
+      value: () => _instance.destroy(),
     });
 
     instance = closure as unknown as QueryManager<Observable<QueryState>> &
