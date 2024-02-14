@@ -1,6 +1,14 @@
 //#region Cache types
-
 import { Observable } from 'rxjs';
+
+/**
+ * Type declaration for logging frameworks implementation
+ *
+ * @internal
+ */
+export type Logger = {
+  log(message: string, ...args: any): void;
+};
 
 /**
  * @internal

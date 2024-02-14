@@ -18,7 +18,13 @@ import {
   takeUntil,
   tap,
 } from 'rxjs';
-import { CacheQueryConfig, QueriesCacheItemType } from './types';
+import { CacheQueryConfig, Logger, QueriesCacheItemType } from './types';
+
+const VoidLogger: Logger = {
+  log: () => {
+    return;
+  },
+};
 
 /**
  * Internal caching implementation of queries.
@@ -34,15 +40,18 @@ export class QueriesCache<
    * State of the cache instance
    */
   private _state: T[] = [];
-
   get length() {
     return this._state.length;
   }
+
+  // Queries cache constructor
+  constructor(private logger: Logger = VoidLogger) {}
 
   /**
    * Removes all items from the cache system
    */
   clear() {
+    this.logger.log(`Flushing cache...`);
     for (const item of this._state ?? []) {
       item.destroy();
     }
@@ -55,7 +64,9 @@ export class QueriesCache<
    * @param item
    */
   add(item: T): void {
+    this.logger.log(`Pushing into cache: `, item);
     this._state = [item, ...(this._state ?? [])];
+    this.logger.log(`Pushed into cache: `, this._state);
   }
 
   /**
@@ -137,10 +148,11 @@ export class QueriesCache<
   }
 
   invalidate(argument: unknown) {
-    const cachedQuery = this.at(this.indexOf(argument));
-    if (cachedQuery) {
-      cachedQuery.setExpiresAt();
-    }
+    // Debug flag is added for debugging purpose to allow developper to
+    this.logger.log(`Invalidating cache item: `, argument, this._state);
+    const item = this.at(this.indexOf(argument));
+    item?.setExpiresAt();
+    this.logger.log('Invalidated cached item: ', this._state)
   }
   //#region Miscellanous
 }

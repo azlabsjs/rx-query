@@ -9,6 +9,7 @@ export {
     CacheQueryConfig,
     CacheType,
     CachedItemType,
-    QueriesCacheItemType
+    QueriesCacheItemType,
+    Logger
 } from './types';
 

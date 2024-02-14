@@ -1,6 +1,7 @@
 import { Observable } from 'rxjs';
 import { createQueryManager } from './base';
 import { QueryArguments, QueryManager, QueryState } from './types';
+import { Logger } from './caching';
 
 /**
  * Holds a static reference to the query manager instance
@@ -9,8 +10,11 @@ import { QueryArguments, QueryManager, QueryState } from './types';
  * instance of the query manager.
  *
  */
-let instance$!: QueryManager<Observable<QueryState>>;
+let instance!: QueryManager<Observable<QueryState>>;
 
+/**
+ * @internal
+ */
 type InvokeQueryType<R> = <T extends (...args: any) => void>(
   action: T,
   ...args: [...QueryArguments<T>]
@@ -26,27 +30,27 @@ type InvokeQueryType<R> = <T extends (...args: any) => void>(
  * framework like angular, prefer usage @azlabjs/ngx-query {@see useQuery()} function
  * or {@see QueryProvider} service
  */
-export function useQueryManager() {
-  function createQuery$(object$: QueryManager<Observable<QueryState>>) {
+export function useQueryManager(logger?: Logger) {
+  function createClosure(manager: QueryManager<Observable<QueryState>>) {
     return <T extends (...args: any) => void>(
       action: T,
       ...args: [...QueryArguments<T>]
     ) => {
-      return object$.invoke.bind(object$)(action, ...args);
+      return manager.invoke.bind(manager)(action, ...args);
     };
   }
-  if (instance$ === null || typeof instance$ === 'undefined') {
-    const query$ = createQuery$(createQueryManager());
-    Object.defineProperty(query$, 'invoke', {
+  if (instance === null || typeof instance === 'undefined') {
+    const closure = createClosure(createQueryManager(logger));
+    Object.defineProperty(closure, 'invoke', {
       value: <T extends (...args: any) => void>(
         action: T,
         ...args: [...QueryArguments<T>]
       ) => {
-        return instance$.invoke(action, ...args);
+        return instance.invoke(action, ...args);
       },
     });
-    instance$ = query$ as unknown as QueryManager<Observable<QueryState>>;
+    instance = closure as unknown as QueryManager<Observable<QueryState>>;
   }
-  return instance$ as QueryManager<Observable<QueryState>> &
+  return instance as QueryManager<Observable<QueryState>> &
     InvokeQueryType<Observable<QueryState>>;
 }

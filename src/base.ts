@@ -10,9 +10,16 @@ import {
   observeOn,
   of,
   Subject,
-  tap
+  tap,
 } from 'rxjs';
-import { buildCacheQuery, cachedQuery, queriesCache } from './caching';
+import {
+  Logger,
+  QueriesCache,
+  QueriesCacheItemType,
+  buildCacheQuery,
+  cachedQuery,
+  queriesCache,
+} from './caching';
 import { useQuerySelector } from './helpers';
 import { guid } from './internal';
 import {
@@ -26,7 +33,7 @@ import {
   QueryPayload,
   QueryState,
   QueryStates,
-  State
+  State,
 } from './types';
 
 //@internal
@@ -42,10 +49,9 @@ export class Requests
   //#region Properties definitions
   private readonly dispatch$!: (action: Required<Action<unknown>>) => void;
   public readonly state$!: Observable<State>;
-  // List of request cached by the current instance
-  private _cache = queriesCache();
   private destroy$ = new Subject<void>();
-
+  // List of request cached by the current instance
+  private _cache!: QueriesCache<QueriesCacheItemType>;
   // Provides an accessor to the request
   get cache() {
     return this._cache;
@@ -53,7 +59,9 @@ export class Requests
   //#endregion Properties definitions
 
   // Class constructor
-  constructor() {
+  constructor(logger?: Logger) {
+    this._cache = queriesCache(logger);
+    // Initialize request handler
     [this.state$, this.dispatch$] = useRxReducer(
       (state, action: Required<Action<unknown>>) => {
         // Compare the transformed to uppercase value of both action name and the query result
@@ -358,6 +366,6 @@ export class Requests
  * Creates an instance of the query manager class
  * It's a factory function that creates the default query manager instance
  */
-export function createQueryManager() {
-  return new Requests();
+export function createQueryManager(logger?: Logger) {
+  return new Requests(logger);
 }

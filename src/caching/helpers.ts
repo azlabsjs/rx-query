@@ -3,7 +3,7 @@ import { ObservableInput } from 'rxjs';
 import { QueryArguments } from '../types';
 import { CachedQuery, QueriesCache } from './cache';
 import { defaultCacheConfig } from './internal';
-import { CacheQueryConfig, QueriesCacheItemType } from './types';
+import { CacheQueryConfig, Logger, QueriesCacheItemType } from './types';
 
 /**
  * @interface
@@ -14,7 +14,7 @@ export function useDefaultCacheConfig() {
 
 /**
  * Cached queries factory function for creating { @see CachedQuery } instances
- * 
+ *
  */
 export function cachedQuery(prop: {
   objectid: string;
@@ -57,8 +57,8 @@ export function cachedQuery(prop: {
  *
  * @internal
  */
-export function queriesCache() {
-  return new QueriesCache();
+export function queriesCache(logger?: Logger) {
+  return new QueriesCache(logger);
 }
 
 /**
