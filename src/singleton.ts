@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { createQueryManager } from './base';
-import { QueryArguments, QueryManager, QueryState } from './types';
+import { Disposable, QueryArguments, QueryManager, QueryState } from './types';
 import { Logger } from './caching';
 
 /**
@@ -10,7 +10,7 @@ import { Logger } from './caching';
  * instance of the query manager.
  *
  */
-let instance!: QueryManager<Observable<QueryState>>;
+let instance!: QueryManager<Observable<QueryState>> & Disposable;
 
 /**
  * @internal
@@ -31,6 +31,7 @@ type InvokeQueryType<R> = <T extends (...args: any) => void>(
  * or {@see QueryProvider} service
  */
 export function useQueryManager(logger?: Logger) {
+  // query manager closure factory function
   function createClosure(manager: QueryManager<Observable<QueryState>>) {
     return <T extends (...args: any) => void>(
       action: T,
@@ -39,18 +40,29 @@ export function useQueryManager(logger?: Logger) {
       return manager.invoke.bind(manager)(action, ...args);
     };
   }
+
   if (instance === null || typeof instance === 'undefined') {
     const closure = createClosure(createQueryManager(logger));
+
+    // define `invoke` method on the closure instance
     Object.defineProperty(closure, 'invoke', {
       value: <T extends (...args: any) => void>(
         action: T,
         ...args: [...QueryArguments<T>]
-      ) => {
-        return instance.invoke(action, ...args);
-      },
+      ) => instance.invoke(action, ...args),
     });
-    instance = closure as unknown as QueryManager<Observable<QueryState>>;
+
+    // define `destroy` method on the closure instance
+    Object.defineProperty(closure, 'destroy', {
+      value: () => instance.destroy(),
+    });
+
+    instance = closure as unknown as QueryManager<Observable<QueryState>> &
+      Disposable;
   }
+
+  // Return the query manager instance
   return instance as QueryManager<Observable<QueryState>> &
-    InvokeQueryType<Observable<QueryState>>;
+    InvokeQueryType<Observable<QueryState>> &
+    Disposable;
 }
