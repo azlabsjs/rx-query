@@ -148,12 +148,14 @@ export class QueriesCache<
   }
 
   invalidate(argument: unknown) {
+    this.logger.log(`Invalidating cache item: `, argument, this._state);
     const _index = this.indexOf(argument);
     if (_index !== -1) {
       const cachedQuery = this.at(_index);
       cachedQuery?.invalidate();
       this.removeAt(_index);
     }
+    this.logger.log('Invalidated cached item: ', this._state)
   }
 
   prune() {
