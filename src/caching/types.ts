@@ -25,7 +25,14 @@ export type QueriesCacheItemType = CachedItemType & {
   argument: unknown;
   retry: () => void;
   setExpiresAt: () => void;
+  /**
+   * Performs a background refetch of the item internal state
+   */
   refetch: () => Promise<any>;
+  /**
+   * Invalidate the cached item and prevent any background fetch
+   */
+  invalidate: () => void;
   destroy: () => void;
   setError: (error: unknown) => void;
 };
@@ -48,7 +55,7 @@ export type CacheType<T> = {
    *
    * @param argument
    */
-  contains: (argument: unknown) => boolean;
+  has: (argument: unknown) => boolean;
 
   /**
    * Return the element in the cache matching the provided argument

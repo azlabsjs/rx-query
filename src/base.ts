@@ -147,6 +147,9 @@ export class Requests
           refetch: () => {
             this.cache.get(id)?.refetch();
           },
+          invalidate: () => {
+            this.cache?.invalidate(id);
+          },
         } as QueryState;
         // We returns the currrent state adding the current request with a
         // request id and a pending status
