@@ -1,8 +1,11 @@
 {
     "version": "0.2.8",
     "license": "MIT",
+    "name": "@azlabsjs/rx-query",
+    "author": "azandrew-sidoine",
     "main": "dist/index.js",
     "module": "dist/esm/index.mjs",
+    "tyoes": "dist/types/index.d.ts",
     "typings": "dist/types/index.d.ts",
     "files": [
         "dist/**/*"
@@ -15,7 +18,6 @@
         "lint": "ts-build lint",
         "prepare": "git config core.hookspath .githooks && ts-build build",
         "size": "size-limit",
-        "analyze": "size-limit --why",
         "test": "jest",
         "prettier": "prettier --write src/**/*"
     },
@@ -32,13 +34,16 @@
     },
     "exports": {
         ".": {
-            "import": "./dist/esm/index.mjs",
-            "require": "./dist/cjs/index.cjs",
+          "import": {
+            "types": "./dist/types/index.d.mts",
+            "default": "./dist/esm/index.mjs"
+          },
+          "require": {
+            "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/index.cjs"
+          }
         }
-    },
-    "name": "@azlabsjs/rx-query",
-    "author": "azandrew-sidoine",
+      },
     "size-limit": [
         {
             "path": "dist/cjs/index.cjs",
@@ -50,8 +55,9 @@
         }
     ],
     "devDependencies": {
-        "@azlabsjs/ts-build": "^0.2.1",
-        "@size-limit/preset-small-lib": "^8.1.0",
+        "@azlabsjs/ts-build": "^0.4.21",
+        "size-limit": "^11.1.4",
+        "@size-limit/preset-small-lib": "^11.1.4",
         "@types/jest": "^29.2.4",
         "@typescript-eslint/eslint-plugin": "^5.47.0",
         "@typescript-eslint/parser": "^5.47.0",
@@ -61,18 +67,17 @@
         "jest-watch-typeahead": "^2.2.1",
         "prettier": "^2.8.1",
         "rxjs": "^7.8.0",
-        "size-limit": "^8.1.0",
         "ts-jest": "^29.0.3",
         "tslib": "^2.4.1",
         "typescript": "^4.9.4"
     },
     "peerDependencies": {
-        "rxjs": "^7.8.0"
+        "rxjs": "^6.0|^7.8.0"
     },
     "dependencies": {
         "@azlabsjs/functional": "^0.2.0",
         "@azlabsjs/rx-hooks": "^0.2.0",
-        "@azlabsjs/utilities": "^0.1.11"
+        "@azlabsjs/utilities": "^0.2.0"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/@azlabsjs"
