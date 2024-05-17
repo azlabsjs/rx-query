@@ -155,7 +155,7 @@ export class QueriesCache<
       cachedQuery?.invalidate();
       this.removeAt(_index);
     }
-    this.logger.log('Invalidated cached item: ', this._state)
+    this.logger.log('Invalidated cached item: ', this._state);
   }
 
   prune() {
