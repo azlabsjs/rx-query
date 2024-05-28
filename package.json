@@ -72,7 +72,7 @@
         "typescript": "^4.9.4"
     },
     "peerDependencies": {
-        "rxjs": "^6.0|^7.8.0"
+        "rxjs": "^6.0 || ^7.8.0"
     },
     "dependencies": {
         "@azlabsjs/functional": "^0.2.0",
