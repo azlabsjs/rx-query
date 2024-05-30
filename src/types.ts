@@ -2,23 +2,20 @@ import { Observable, ObservableInput } from 'rxjs';
 import { CacheQueryConfig } from './caching';
 
 //#region queries service types
-/**
- * @description Enumerated value of the query object state
- */
+/** @description Enumerated value of the query object state */
 export enum QueryStates {
   LOADING = 'loading',
   SUCCESS = 'success',
   ERROR = 'error',
-  REVALIDATE = 'revalidate'
+  REVALIDATE = 'revalidate',
 }
 
+/** @description Marks service or instance as disposable */
 export interface Disposable {
   destroy(): void | Promise<void>;
 }
 
-/**
- * @internal
- */
+/** @internal */
 export type QueryState<TPayload = unknown> = {
   id: string;
   pending: boolean;
@@ -48,9 +45,7 @@ export type QueryState<TPayload = unknown> = {
   };
 };
 
-/**
- * @internal
- */
+/** @internal */
 export type QueryPayload<
   TFunc extends (...args: any) => void = (...args: any) => void
 > = {
@@ -59,41 +54,31 @@ export type QueryPayload<
   id: string;
 };
 
-/**
- * @internal
- */
+/** @internal */
 export type FnActionArgumentLeastType = CacheQueryConfig & {
   name: string;
   cacheQuery: boolean;
 };
 
-/**
- * @internal
- */
+/** @internal */
 export type QueryArguments<F> = F extends (
   ...args: infer A
 ) => ObservableInput<unknown>
   ? [...A, FnActionArgumentLeastType] | [...A]
   : never;
 
-/**
- * @internal
- */
+/** @internal */
 export type ObservableInputFunction = (
   ...args: unknown[]
 ) => ObservableInput<unknown>;
 
-/**
- * @internal
- */
+/** @internal */
 export type Action<T = unknown> = {
   name: string;
   payload?: T;
 };
 
-/**
- * @description Query comment interface
- */
+/** @description Query comment interface */
 export interface CommandInterface<R = unknown> {
   dispatch<T extends (...args: any) => void>(
     action: T,
@@ -101,9 +86,7 @@ export interface CommandInterface<R = unknown> {
   ): R;
 }
 
-/**
- * @description Query manager interface
- */
+/** @description Query manager interface */
 export interface QueryManager<R> {
   invoke<T extends (...args: any) => void>(
     action: T,
@@ -111,9 +94,7 @@ export interface QueryManager<R> {
   ): R;
 }
 
-/**
- * @internal
- */
+/** @internal */
 export type State = {
   performingAction: boolean;
   requests: QueryState[];
@@ -121,7 +102,9 @@ export type State = {
 };
 
 /**
- * @internal
+ * @deprecated
+ * 
+ *  @internal
  */
 export type BaseQueryType<TMethod extends string, TObserve = string> = {
   path: string;
@@ -130,6 +113,8 @@ export type BaseQueryType<TMethod extends string, TObserve = string> = {
 };
 
 /**
+ * @deprecated Will be removed from version 0.3.x as the API will only support closure
+ * and `{ query(): Observable<unkown> }` instance as parameter
  * @description Query object type data structure
  */
 export type QueryType<
@@ -140,17 +125,13 @@ export type QueryType<
   params?: Record<string, any> | { [prop: string]: string | string[] };
 };
 
-/**
- * @internal
- */
+/** @internal */
 export type QueryParameter<TFunc, TMethod extends string> = {
   methodOrConfig: QueryType<TMethod> | TFunc;
   arguments?: [...QueryArguments<TFunc>];
 };
 
-/**
- * @description Query client base interface
- */
+/** @description Query client base interface */
 export type QueryClientType<TMethod extends string> = {
   /**
    * Sends a client query to a server enpoint and returns
@@ -164,9 +145,7 @@ export type QueryClientType<TMethod extends string> = {
   ): Observable<QueryState>;
 };
 
-/**
- * @description Provides implementation for querying a resource
- */
+/** @description Provides implementation for querying a resource */
 export type QueryProviderType<
   TQueryParameters extends [...any[]] = any,
   ProvidesType = any
@@ -180,11 +159,40 @@ export type QueryProviderType<
   query: (...args: TQueryParameters) => Observable<ProvidesType>;
 };
 
-/**
- * @description Functional type definition for user provided query function
- */
+/** @description Functional type definition for user provided query function */
 export type QueryProviderFunc<
   TQueryParameters extends [...any[]] = any,
   ProvidesType = any
 > = (...args: TQueryParameters) => ObservableInput<ProvidesType>;
 //#endregion
+
+//#region useQuery type declarations
+/** @description Union type declaration for query state to observe */
+export type ObserveKeyType = 'query' | 'response' | 'body';
+
+/** @internal */
+type QueryProviderProvidesParamType<
+  TParam extends [...unknown[]],
+  T extends QueryProviderType<TParam>
+> = Parameters<T['query']>;
+
+/** @internal */
+type QueryProviderQuerConfigType = {
+  name: string;
+  observe?: ObserveKeyType;
+};
+
+/** @internal */
+export type QueryStateLeastParameters<F> = F extends (
+  ...args: infer A
+) => unknown
+  ? [...A, FnActionArgumentLeastType] | [...A]
+  : F extends QueryProviderType
+  ? [...QueryProviderProvidesParamType<Parameters<F['query']>, F>]
+  : never;
+
+/** Cached query provider configuration type declaration */
+export type CacheQueryProviderType = QueryProviderType & {
+  cacheConfig: CacheQueryConfig & QueryProviderQuerConfigType;
+};
+//#endregion useQuery type declarations

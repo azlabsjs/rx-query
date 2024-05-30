@@ -13,6 +13,11 @@ export {
   refetchQuery,
   useQuerySelector,
   invalidateQuery,
+  as,
+  returnType,
+  useQuery,
+  observableReturnType,
+  useDebug,
 } from './helpers';
 export { queryResult, selectQuery } from './rx';
 export { useQueryManager } from './singleton';
@@ -28,8 +33,14 @@ export {
   QueryManager,
   QueryParameter,
   QueryProviderType,
-  QueryState,
+  /** @deprecated Query state is entended to be used internally */
+  QueryState as QueryStateType,
   QueryStates,
   QueryType,
   State,
+  CacheQueryProviderType,
+  ObserveKeyType,
 } from './types';
+
+/* Exported decorators */
+export { ProvidesQuery, QueryDispatch, QueryState } from './decorators';

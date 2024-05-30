@@ -45,7 +45,7 @@ describe('Cached request class cache tests', () => {
           return attempts < 3 || error !== 'Server Error';
         },
       },
-      window: defaultWindow,
+      view: defaultWindow,
     });
 
     await lastValueFrom(interval(2000).pipe(first()));

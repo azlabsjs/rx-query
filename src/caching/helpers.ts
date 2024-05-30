@@ -22,7 +22,7 @@ export function cachedQuery(prop: {
   callback: () => ObservableInput<unknown>;
   errorCallback?: (error: unknown) => void;
   refetchCallback?: (response: unknown) => void;
-  window?: Window;
+  view?: Window;
   lastError?: unknown;
   argument?: unknown;
 }): QueriesCacheItemType {
@@ -33,6 +33,7 @@ export function cachedQuery(prop: {
     lastError,
     objectid,
     argument,
+    view: w,
     errorCallback,
   } = prop;
   return new CachedQuery(
@@ -47,7 +48,7 @@ export function cachedQuery(prop: {
     callback,
     refetchCallback,
     errorCallback,
-    window,
+    w,
     lastError
   );
 }

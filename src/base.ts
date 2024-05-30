@@ -20,8 +20,7 @@ import {
   cachedQuery,
   queriesCache,
 } from './caching';
-import { useQuerySelector } from './helpers';
-import { guid } from './internal';
+import { guid, useQuerySelector } from './internal';
 import {
   Action,
   CommandInterface,
@@ -320,7 +319,7 @@ export class Requests
               } as QueryState,
             });
           },
-          window: cacheConfig.defaultView,
+          view: cacheConfig.defaultView,
         })
       );
     }

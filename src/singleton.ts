@@ -12,9 +12,7 @@ import { Logger } from './caching';
  */
 let instance!: QueryManager<Observable<QueryState>> & Disposable;
 
-/**
- * @internal
- */
+/** @internal */
 type InvokeQueryType<R> = <T extends (...args: any) => void>(
   action: T,
   ...args: [...QueryArguments<T>]
@@ -42,6 +40,7 @@ export function useQueryManager(logger?: Logger) {
   }
 
   if (instance === null || typeof instance === 'undefined') {
+    logger?.log('Creating new query manager instance...');
     const _instance = createQueryManager(logger);
     const closure = createClosure(_instance);
 

@@ -20,12 +20,6 @@ import {
 } from 'rxjs';
 import { CacheQueryConfig, Logger, QueriesCacheItemType } from './types';
 
-const VoidLogger: Logger = {
-  log: () => {
-    return;
-  },
-};
-
 /**
  * Internal caching implementation of queries.
  *
@@ -45,13 +39,13 @@ export class QueriesCache<
   }
 
   // Queries cache constructor
-  constructor(private logger: Logger = VoidLogger) {}
+  constructor(private logger?: Logger) {}
 
   /**
    * Removes all items from the cache system
    */
   clear() {
-    this.logger.log(`Flushing cache...`);
+    this.logger?.log(`Flushing cache...`);
     for (const item of this._state ?? []) {
       item.destroy();
     }
@@ -64,9 +58,9 @@ export class QueriesCache<
    * @param item
    */
   add(item: T): void {
-    this.logger.log(`Pushing into cache: `, item);
+    this.logger?.log(`Pushing into cache: `, item);
     this._state = [item, ...(this._state ?? [])];
-    this.logger.log(`Pushed into cache: `, this._state);
+    this.logger?.log(`Pushed into cache: `, this._state);
   }
 
   /**
@@ -148,14 +142,14 @@ export class QueriesCache<
   }
 
   invalidate(argument: unknown) {
-    this.logger.log(`Invalidating cache item: `, argument, this._state);
+    this.logger?.log(`Invalidating cache item: `, argument, this._state);
     const _index = this.indexOf(argument);
     if (_index !== -1) {
       const cachedQuery = this.at(_index);
       cachedQuery?.invalidate();
       this.removeAt(_index);
     }
-    this.logger.log('Invalidated cached item: ', this._state);
+    this.logger?.log('Invalidated cached item: ', this._state);
   }
 
   prune() {
@@ -228,7 +222,7 @@ export class CachedQuery implements QueriesCacheItemType {
     private readonly callback: () => ObservableInput<unknown>,
     private refetchCallback?: (response: unknown) => void,
     private errorCallback?: (error: unknown) => void,
-    view?: Window,
+    private view?: Window,
     lastError?: unknown
   ) {
     const { refetchInterval, refetchOnReconnect, refetchOnWindowFocus } =
@@ -307,8 +301,8 @@ export class CachedQuery implements QueriesCacheItemType {
   }
 
   destroy() {
-    window?.removeEventListener('online', this.onWindowReconnect);
-    window?.removeEventListener('focus', this.onWindowFocus);
+    this.view?.removeEventListener('online', this.onWindowReconnect);
+    this.view?.removeEventListener('focus', this.onWindowFocus);
     this.clearRefetch$?.next();
     this.destroy$.next();
   }
@@ -349,12 +343,12 @@ export class CachedQuery implements QueriesCacheItemType {
       .subscribe();
   }
 
-  private refetchOnFocus(defaultWindow?: Window) {
-    defaultWindow?.addEventListener('focus', this.onWindowFocus);
+  private refetchOnFocus(w?: Window) {
+    w?.addEventListener('focus', this.onWindowFocus);
   }
 
-  private refetchOnReconnect(defaultWindow?: Window) {
-    defaultWindow?.addEventListener('online', this.onWindowReconnect);
+  private refetchOnReconnect(w?: Window) {
+    w?.addEventListener('online', this.onWindowReconnect);
   }
 
   private doRetry() {
