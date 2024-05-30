@@ -211,7 +211,7 @@ export function useDebug<TReturn = any>(logger: Logger) {
 }
 
 /** @internal actual query factory function */
-function _useQuery<T>(
+export function _useQuery<T>(
   logger: Logger | null,
   p: T,
   ...args: [...QueryStateLeastParameters<T>]

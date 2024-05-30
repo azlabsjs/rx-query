@@ -1,5 +1,5 @@
-import { CacheQueryConfig, useDefaultCacheConfig } from './caching';
-import { useQuery } from './helpers';
+import { CacheQueryConfig, Logger, useDefaultCacheConfig } from './caching';
+import { _useQuery, useQuery } from './helpers';
 import {
   ObserveKeyType,
   QueryProviderType,
@@ -7,21 +7,40 @@ import {
 } from './types';
 
 /**
- * Class property decorator sending query using HTTP Query client.
- * It automatically invokes client provided query at initialization
+ * Class property decorator sending query.
  *
  * It caches the the result of the query and refetch it in the background
  * if client requested it to do so.
  *
- * @param params
+ * It uses the logger to log query result changes for debugging purpose
+ *
  */
-export const QueryState = <T>(
+export const DebugQuery = <T>(
+  logger: Logger,
   params: T,
   ...args: [...QueryStateLeastParameters<T>]
 ) => {
   return <TargetType>(target: TargetType, propertyKey: string) => {
     Object.defineProperty(target, propertyKey, {
-      value: useQuery(params, ...args),
+      value: _useQuery(logger, params, ...args),
+    });
+  };
+};
+
+/**
+ * Class property decorator sending query.
+ *
+ * It caches the the result of the query and refetch it in the background
+ * if client requested it to do so.
+ *
+ */
+export const Query = <T>(
+  params: T,
+  ...args: [...QueryStateLeastParameters<T>]
+) => {
+  return <TargetType>(target: TargetType, propertyKey: string) => {
+    Object.defineProperty(target, propertyKey, {
+      value: _useQuery(null, params, ...args),
     });
   };
 };

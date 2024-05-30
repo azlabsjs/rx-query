@@ -43,4 +43,4 @@ export {
 } from './types';
 
 /* Exported decorators */
-export { ProvidesQuery, QueryDispatch, QueryState } from './decorators';
+export { ProvidesQuery, QueryDispatch, Query, DebugQuery } from './decorators';
