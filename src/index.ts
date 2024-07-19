@@ -35,6 +35,8 @@ export {
   QueryProviderType,
   /** @deprecated Query state is entended to be used internally */
   QueryState as QueryStateType,
+  /** @deprecated */
+  QueryState,
   QueryStates,
   QueryType,
   State,
