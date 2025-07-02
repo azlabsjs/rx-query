@@ -1,14 +1,7 @@
-export { CachedQuery, QueriesCache } from './cache';
 export {
+  Cache,
   buildCacheQuery,
-  cachedQuery,
-  queriesCache,
+  createCache,
   useDefaultCacheConfig,
-} from './helpers';
-export {
-  CacheQueryConfig,
-  CacheType,
-  CachedItemType,
-  QueriesCacheItemType,
-  Logger,
-} from './types';
+} from './cache';
+export { CacheQueryConfig, CacheType, Logger } from './types';

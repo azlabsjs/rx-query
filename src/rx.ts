@@ -34,8 +34,7 @@ export function queryResult<TResponse>(
 
 
 /**
- * Provides a selector of query that can be applied on a
- * query state observable
+ * @description provides a selector of query that can be applied on a query state observable
  */
 export function selectQuery(argument: unknown) {
   return (observable$: Observable<State>) =>

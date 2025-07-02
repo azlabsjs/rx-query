@@ -1,10 +1,5 @@
 export { createQueryManager } from './base';
-export {
-  CacheQueryConfig,
-  cachedQuery,
-  queriesCache,
-  useDefaultCacheConfig,
-} from './caching';
+export { createCache, useDefaultCacheConfig } from './caching';
 export {
   createQueryParams,
   queryCompleted,

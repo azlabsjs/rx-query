@@ -1,6 +1,10 @@
 import { Observable, ObservableInput } from 'rxjs';
 import { CacheQueryConfig } from './caching';
 
+/** @internal */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type UnknownType = any;
+
 //#region queries service types
 /** @description Enumerated value of the query object state */
 export enum QueryStates {
@@ -28,7 +32,7 @@ export type QueryState<TPayload = unknown> = {
   refetch: () => void;
 
   /**
-   * Invalidate the cached query. Once the query is invalidated,
+   * invalidate the cached query. Once the query is invalidated,
    * any subsequent call to fetch a new query response should not
    * provide from cache
    */
@@ -47,7 +51,7 @@ export type QueryState<TPayload = unknown> = {
 
 /** @internal */
 export type QueryPayload<
-  TFunc extends (...args: any) => void = (...args: any) => void
+  TFunc extends (...args: UnknownType[]) => void = (...args: UnknownType[]) => void
 > = {
   argument: [string, TFunc, ...QueryArguments<TFunc>];
   callback: () => ObservableInput<unknown>;
@@ -80,7 +84,7 @@ export type Action<T = unknown> = {
 
 /** @description Query comment interface */
 export interface CommandInterface<R = unknown> {
-  dispatch<T extends (...args: any) => void>(
+  dispatch<T extends (...args: UnknownType[]) => void>(
     action: T,
     ...args: [...QueryArguments<T>]
   ): R;
@@ -88,7 +92,7 @@ export interface CommandInterface<R = unknown> {
 
 /** @description Query manager interface */
 export interface QueryManager<R> {
-  invoke<T extends (...args: any) => void>(
+  invoke<T extends (...args: UnknownType[]) => void>(
     action: T,
     ...args: [...QueryArguments<T>]
   ): R;
@@ -122,7 +126,7 @@ export type QueryType<
   TObserve = string
 > = BaseQueryType<TMethod, TObserve> & {
   body?: unknown;
-  params?: Record<string, any> | { [prop: string]: string | string[] };
+  params?: Record<string, UnknownType> | { [prop: string]: string | string[] };
 };
 
 /** @internal */
@@ -147,8 +151,8 @@ export type QueryClientType<TMethod extends string> = {
 
 /** @description Provides implementation for querying a resource */
 export type QueryProviderType<
-  TQueryParameters extends [...any[]] = any,
-  ProvidesType = any
+  TQueryParameters extends [...UnknownType[]] = UnknownType,
+  ProvidesType = UnknownType
 > = {
   /**
    * Sends a client query to a server enpoint and returns
@@ -161,8 +165,8 @@ export type QueryProviderType<
 
 /** @description Functional type definition for user provided query function */
 export type QueryProviderFunc<
-  TQueryParameters extends [...any[]] = any,
-  ProvidesType = any
+  TQueryParameters extends [...UnknownType[]] = UnknownType,
+  ProvidesType = UnknownType
 > = (...args: TQueryParameters) => ObservableInput<ProvidesType>;
 //#endregion
 

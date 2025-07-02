@@ -14,6 +14,7 @@ import {
   QueryState,
   QueryStateLeastParameters,
   QueryStates,
+  UnknownType,
 } from './types';
 import { useQueryManager } from './singleton';
 import { useQuerySelector as internalUseQuerySelector } from './internal';
@@ -190,7 +191,6 @@ export const returnType = as;
  * and replay / refetch it based on the interval defined by the library user
  *
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useQuery<T>(
   params: T,
   ...args: [...QueryStateLeastParameters<T>]
@@ -205,7 +205,7 @@ export function useQuery<T>(
  * **Note** Provided logger object `console.log` for instance when provided is
  * used to
  */
-export function useDebug<TReturn = any>(logger: Logger) {
+export function useDebug<TReturn = UnknownType>(logger: Logger) {
   return <T>(params: T, ...args: [...QueryStateLeastParameters<T>]) =>
     observableReturnType<TReturn>(_useQuery(logger, params, ...args));
 }
@@ -219,15 +219,13 @@ export function _useQuery<T>(
   const [_query, _arguments, observe] = parseQueryArguments(p, args);
   let _observe = observe;
   const queryManager = useQueryManager(logger ? logger : undefined);
-  const queryFunc = <TFunc extends (...args: any) => any>(
+  const queryFunc = <TFunc extends (...args: UnknownType) => UnknownType>(
     query: TFunc,
     ...args: [...QueryArguments<TFunc>]
   ) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return queryManager(query, ...args);
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = queryFunc(_query as any, ...(_arguments ?? []));
+  const result = queryFunc(_query as UnknownType, ...(_arguments ?? []));
   const _params = p as unknown;
   if (typeof (_params as CacheQueryProviderType).query === 'function') {
     _observe =
@@ -243,7 +241,7 @@ export function _useQuery<T>(
       : ((_observe === 'body'
           ? queryResultBody()
           : map((state) => state)) as OperatorFunction<QueryState, unknown>)
-  ) as Observable<any>;
+  ) as Observable<UnknownType>;
 }
 
 /**

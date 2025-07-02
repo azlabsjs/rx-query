@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs';
 import { createQueryManager } from './base';
-import { Disposable, QueryArguments, QueryManager, QueryState } from './types';
+import { Disposable, QueryArguments, QueryManager, QueryState, UnknownType } from './types';
 import { Logger } from './caching';
 
 /**
@@ -13,7 +13,7 @@ import { Logger } from './caching';
 let instance!: QueryManager<Observable<QueryState>> & Disposable;
 
 /** @internal */
-type InvokeQueryType<R> = <T extends (...args: any) => void>(
+type InvokeQueryType<R> = <T extends (...args: UnknownType) => void>(
   action: T,
   ...args: [...QueryArguments<T>]
 ) => R;
@@ -31,7 +31,7 @@ type InvokeQueryType<R> = <T extends (...args: any) => void>(
 export function useQueryManager(logger?: Logger) {
   // query manager closure factory function
   function createClosure(manager: QueryManager<Observable<QueryState>>) {
-    return <T extends (...args: any) => void>(
+    return <T extends (...args: UnknownType[]) => void>(
       action: T,
       ...args: [...QueryArguments<T>]
     ) => {
@@ -46,7 +46,7 @@ export function useQueryManager(logger?: Logger) {
 
     // define `invoke` method on the closure instance
     Object.defineProperty(closure, 'invoke', {
-      value: <T extends (...args: any) => void>(
+      value: <T extends (...args: UnknownType[]) => void>(
         action: T,
         ...args: [...QueryArguments<T>]
       ) => _instance.invoke(action, ...args),

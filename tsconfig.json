@@ -36,8 +36,6 @@
     // error out if import and file system have a casing mismatch. Recommended by TS
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
-    // Directory where typescript output declaration files
-    "declarationDir": "./dist/types",
 
     // Enables experimental support for TC39 stage 2 draft decorators.
     "experimentalDecorators": true,

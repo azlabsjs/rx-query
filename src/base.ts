@@ -1,180 +1,347 @@
-import { useRxEffect, useRxReducer } from '@azlabsjs/rx-hooks';
 import {
   asyncScheduler,
   catchError,
   EMPTY,
   from,
-  map,
   Observable,
   ObservableInput,
   observeOn,
-  of,
-  Subject,
-  tap,
+  Subscriber,
+  Subscription,
 } from 'rxjs';
+import { CacheQueryConfig, Logger, buildCacheQuery, Cache } from './caching';
+import { guid } from './internal';
 import {
-  Logger,
-  QueriesCache,
-  QueriesCacheItemType,
-  buildCacheQuery,
-  cachedQuery,
-  queriesCache,
-} from './caching';
-import { guid, useQuerySelector } from './internal';
-import {
-  Action,
-  CommandInterface,
   Disposable,
   FnActionArgumentLeastType,
   ObservableInputFunction,
   QueryArguments,
   QueryManager,
-  QueryPayload,
   QueryState,
   QueryStates,
-  State,
+  UnknownType,
 } from './types';
 
-//@internal
-const QUERY_RESULT_ACTION = '[REQUEST_RESULT_ACTION]';
-const NOQUERYACTION = Symbol('__NO__QUERY__ACTION__');
+type CachedQueryState = QueryState & {
+  destroy: () => void;
+  expires: () => boolean;
+};
 
+function createobservable(
+  cache: Map<string, QueryState>,
+  req: () => ObservableInput<unknown>,
+  properties: CacheQueryConfig,
+  state: Partial<QueryState>,
+  refetchCallback?: (response: unknown) => void,
+  errorCallback?: (error: unknown) => void
+) {
+  let subscription: Subscription | undefined = undefined;
+  let staled: boolean = false;
+  let lastError: unknown = undefined;
+  let tries: number = 0;
+  let requesting: boolean = false;
+
+  //
+  const _req = req;
+  const { defaultView: runtime, retries, staleTime } = properties;
+  let _subscriber: Subscriber<unknown>;
+  let _interval: number | undefined;
+  let _state: CachedQueryState = createInitialState(state);
+
+  // destructure `_state` variable to get id property
+  // const { id } = _state;
+
+  function _clearInterval() {
+    // Log('Clearing interval...');
+    // stop refetch observable listener
+    if (_interval) {
+      clearInterval(_interval);
+    }
+  }
+
+  function _onRuntimeReconnect() {
+    refetch();
+  }
+
+  function _onRuntimeFocus() {
+    refetch();
+  }
+
+  function _refetchOnFocus() {
+    if (runtime) {
+      runtime.addEventListener('focus', _onRuntimeFocus);
+    }
+  }
+
+  function _refetchOnReconnect() {
+    if (runtime) {
+      runtime.addEventListener('online', _onRuntimeReconnect);
+    }
+  }
+
+  function _refetchOnInterval(req: () => ObservableInput<unknown>, ms: number) {
+    if (typeof ms === 'undefined' || ms === null) {
+      return;
+    }
+
+    if (typeof ms === 'number' && (ms < 0 || ms === Infinity)) {
+      return;
+    }
+
+    _interval = setInterval(() => request(req), ms) as unknown as number;
+  }
+
+  function createInitialState(state: Partial<QueryState>): CachedQueryState {
+    return {
+      ...state,
+      pending: true,
+      timestamps: {
+        createdAt: Date.now(),
+      },
+      refetch: () => {
+        refetch();
+      },
+      invalidate: () => {
+        if (_state.id) {
+          cache.delete(_state.id);
+          _state.destroy();
+        }
+      },
+      state: QueryStates.LOADING,
+    } as CachedQueryState;
+  }
+
+  function _createResponsePayload<T>(s: CachedQueryState, response: T) {
+    return {
+      ...s,
+      response,
+      timestamps: {
+        ...(s.timestamps ?? {}),
+        updatedAt: Date.now(),
+      },
+      ok: true,
+      state: QueryStates.SUCCESS,
+    };
+  }
+
+  function _createErrorPayload(s: CachedQueryState, error: unknown) {
+    return {
+      ...s,
+      error,
+      timestamps: {
+        ...(s.timestamps ?? {}),
+        updatedAt: Date.now(),
+      },
+      ok: false,
+      state: QueryStates.ERROR,
+    };
+  }
+
+  function _setState(s: CachedQueryState) {
+    _state = s;
+    if (_state.id) {
+      cache.set(_state.id, _state);
+    }
+  }
+
+  async function refetch() {
+    // clear refetch to stop the current refetch observable
+    _clearInterval();
+    const { refetchInterval } = properties;
+
+    // do a query to update the state
+    request(_req);
+
+    // reconfigure the refetch action
+    if (refetchInterval) {
+      _refetchOnInterval(_req, refetchInterval);
+    }
+  }
+
+  function canRetry() {
+    return (
+      (typeof retries === 'number' && tries <= retries) ||
+      (typeof retries === 'function' && retries(tries, lastError))
+    );
+  }
+
+  function markStaled() {
+    if (
+      typeof staleTime === 'undefined' ||
+      staleTime === null ||
+      staleTime === 0
+    ) {
+      staled = true;
+    } else {
+      const t = setTimeout(() => {
+        staled = true;
+        clearTimeout(t);
+      }, staleTime);
+    }
+  }
+
+  function retry() {
+    // case cannot retry, we drop out of the execution context
+    if (!canRetry()) {
+      return;
+    }
+
+    tries += 1;
+    const { retryDelay } = properties;
+    let delay: number;
+    if (typeof retryDelay === 'function') {
+      delay = retryDelay(tries);
+    } else {
+      delay = retryDelay ?? 1000;
+    }
+
+    const timeout = setTimeout(() => {
+      request(_req);
+      clearTimeout(timeout);
+    }, delay);
+  }
+
+  function request(req: () => ObservableInput<unknown>) {
+    if (!staled || requesting) {
+      return;
+    }
+    // Log('Executing request...', staled, requesting);
+
+    requesting = true;
+    // before executing a new request, unsubscribe from current context
+    const observable$ = from(req()).pipe(
+      observeOn(asyncScheduler),
+      catchError((error) => {
+        lastError = error;
+        // if the tries is more than or equal to the configured tries,
+        // we trigger an error call on the cached instance
+        if (!canRetry() && typeof errorCallback === 'function') {
+          errorCallback(error);
+        } else {
+          retry();
+        }
+        // return an empty Observable to swallow the error
+        return EMPTY;
+      })
+    );
+
+    if (subscription) {
+      subscription.unsubscribe();
+    }
+
+    if (_subscriber) {
+      subscription = observable$.subscribe({
+        next: (response) => {
+          requesting = false;
+          // unmark the query as stale after each successful state
+          // set lastError to undefined if request ends successfully
+          lastError = undefined;
+          staled = false;
+
+          // update request state
+          _setState(_createResponsePayload(_state, response));
+
+          if (refetchCallback) {
+            refetchCallback(response);
+          }
+
+          // mark the query as stale based on the staleTime configuration
+          markStaled();
+
+          // next the response to the subscriber to updated current value
+          _subscriber.next(_state);
+        },
+        error: (err) => {
+          requesting = false;
+          _setState(_createErrorPayload(_state, err));
+        },
+      });
+    }
+  }
+
+  return new Observable<CachedQueryState>((subscriber) => {
+    const _unsubscribe = subscriber.unsubscribe.bind(subscriber);
+    const _overridenSubscribe = () => {
+      // we clear any background task whenever we unsubscribe from the subscriber
+      // we prevent resources leaks
+      _clearInterval();
+      _unsubscribe();
+    };
+    Object.defineProperty(subscriber, 'unsubscribe', {
+      value: _overridenSubscribe,
+      writable: true, // Allows the 'greet' method to be reassigned later
+      enumerable: true, // Makes 'greet' show up in Object.keys(), for...in, etc.
+      configurable: true, // Allows the property to be deleted or its descriptor changed
+    });
+    // set the _subscriber to equal observable subscriber, in order to notify it
+    // when background task completes
+    _subscriber = subscriber;
+
+    if (_state.id && cache.has(_state.id)) {
+      subscriber.next(cache.get(_state.id) as CachedQueryState);
+    } else {
+      // we subscribe to the request only when users subscribes to it
+      subscriber.next(_state);
+      subscription = from(_req())
+        .pipe(observeOn(asyncScheduler))
+        .subscribe({
+          next: (response) => {
+            requesting = false;
+            _setState(_createResponsePayload(_state, response));
+
+            // mark the query as stale based on the staleTime configuration
+            markStaled();
+
+            // Next the response to the subscriber to updated current value
+            _subscriber.next(_state);
+          },
+          error: (err) => {
+            requesting = false;
+            subscriber.error(err);
+            _setState(_createErrorPayload(_state, err));
+          },
+        });
+    }
+
+    const { refetchInterval, refetchOnReconnect, refetchOnWindowFocus } =
+      properties;
+
+    if (refetchInterval) {
+      _refetchOnInterval(_req, refetchInterval);
+    }
+
+    if (refetchOnReconnect) {
+      _refetchOnReconnect();
+    }
+
+    if (refetchOnWindowFocus) {
+      _refetchOnFocus();
+    }
+
+    return function () {
+      // cleanup
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
+  });
+}
+
+
+/** @internal */
 export class Requests
-  implements
-    CommandInterface<string>,
-    QueryManager<Observable<QueryState>>,
-    Disposable
+  implements QueryManager<Observable<QueryState>>, Disposable
 {
-  //#region Properties definitions
-  private readonly dispatch$!: (action: Required<Action<unknown>>) => void;
-  public readonly state$!: Observable<State>;
-  private destroy$ = new Subject<void>();
   // List of request cached by the current instance
-  private _cache!: QueriesCache<QueriesCacheItemType>;
+  private _cache!: Cache<CachedQueryState>;
   // Provides an accessor to the request
   get cache() {
     return this._cache;
   }
-  //#endregion Properties definitions
 
   // Class constructor
-  constructor(logger?: Logger) {
-    this._cache = queriesCache(logger);
-    // Initialize request handler
-    [this.state$, this.dispatch$] = useRxReducer(
-      (state, action: Required<Action<unknown>>) => {
-        // Compare the transformed to uppercase value of both action name and the query result
-        // action to make sure no case error occured
-        if (action.name?.toUpperCase() === QUERY_RESULT_ACTION.toUpperCase()) {
-          const { payload: resultPayload } = action as Action<QueryState>;
-          const {
-            id,
-            response,
-            error,
-            ok,
-            state: _state,
-          } = (resultPayload ?? {}) as QueryState;
-          // If the response does not contains any id field, we cannot process any further
-          // therefore simply return the current state
-          if (null === id || typeof id === 'undefined') {
-            return { ...state };
-          }
-          const requests: QueryState[] = [...(state.requests ?? [])];
-          const index = requests.findIndex((request) => request.id === id);
-          const request = {
-            ...(requests[index] ?? {}),
-            id,
-            pending: false,
-            response,
-            error,
-            ok,
-            state: _state,
-          };
-          if (-1 !== index) {
-            requests.splice(index, 1, {
-              ...request,
-              timestamps: {
-                ...(requests[index].timestamps ?? {}),
-                updatedAt: Date.now(),
-              },
-            });
-          } else {
-            requests.push(request);
-          }
-          // We loop through all request and check if any of the request is pending
-          // If any of the request is pending, we mark the state performingAction state
-          // to true
-          let performingAction = false;
-          for (const current of requests) {
-            if (current.pending) {
-              performingAction = true;
-              break;
-            }
-          }
-          const outState = {
-            ...state,
-            performingAction,
-            lastRequest: {
-              ...requests[index],
-            },
-            requests: [...requests],
-          } as State;
-          return outState;
-        }
-        // Case the request action name not equals REQUEST_RESULT_ACTION, we internally handle the request
-        // and dispatch the result into the store
-        const { payload } = action as Required<Action<QueryPayload>>;
-        const { id, argument, callback } = payload;
-        let performingAction = false;
-        //#region Send the request to the API server
-        if (callback) {
-          performingAction = true;
-          this.sendRequest(callback, id);
-        }
-        //#endregion Send the request to the API server
-        const req = {
-          id,
-          pending: true,
-          state: QueryStates.LOADING,
-          argument,
-          response: undefined,
-          timestamps: {
-            createdAt: Date.now(),
-          },
-          // To any created request, add the refetch function
-          // that allows developpers to fetch the request
-          refetch: () => {
-            this.cache.get(id)?.refetch();
-          },
-          invalidate: () => {
-            this.cache?.invalidate(id);
-          },
-        } as QueryState;
-        // We returns the currrent state adding the current request with a
-        // request id and a pending status
-        const outState = {
-          ...state,
-          performingAction,
-          lastRequest: req,
-          requests: [
-            req,
-            // We add the new request at the top of the list
-            // for optimization purpose
-            ...(state.requests ?? []),
-          ],
-        } as State;
-        return outState;
-      },
-      {
-        performingAction: false,
-        requests: [],
-        metadata: {
-          timestamp: undefined,
-        },
-      } as State,
-      (_initial) => _initial as State
-    );
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_?: Logger) {}
 
   /**
    * Static function for creating a request uuid that is
@@ -187,185 +354,49 @@ export class Requests
     return guid();
   }
 
-  private sendRequest(request: () => ObservableInput<unknown>, id?: string) {
-    useRxEffect(
-      from(request()).pipe(
-        observeOn(asyncScheduler),
-        map((response) => ({
-          name: QUERY_RESULT_ACTION,
-          payload: {
-            id,
-            response,
-            ok: true,
-            state: QueryStates.SUCCESS,
-          } as QueryState,
-        })),
-        catchError((error) => {
-          // Request is configured to be cached if it exists in the cache
-          const cachedRequest = this.cache.get(id);
-          if (cachedRequest) {
-            cachedRequest.setError(error);
-            // Call the cached request retry method
-            cachedRequest.retry();
-            return EMPTY;
-          } else {
-            return of({
-              name: QUERY_RESULT_ACTION,
-              payload: {
-                id,
-                error,
-                ok: false,
-                state: QueryStates.ERROR,
-              } as QueryState,
-            });
-          }
-        }),
-        tap(this.dispatch$)
-      ),
-      [this, 'destroy']
-    );
-  }
-
-  private resolve<F extends ObservableInputFunction>(
-    action: F,
-    ...args: QueryArguments<typeof action>
-  ): [string, Required<Action<unknown>> | symbol, boolean] {
-    let cached = false;
-    let uuid!: string;
-    // TODO: finds a meaninful action name for function dispatch
-    const actionType = '[QUERY_FUNCTION_ACTION]';
-    //#region caching request
-    const cacheConfig = (
-      (action as (...args: any) => void).length < args.length
+  invoke<T extends (...args: UnknownType) => void>(
+    action: T,
+    ...args: QueryArguments<T>
+  ) {
+    const config = (
+      (action as (...args: unknown[]) => void).length < args.length
         ? args[args.length - 1]
         : undefined
     ) as FnActionArgumentLeastType;
-    //#endregion caching request
-    // Case the last value passed as argument is an instance of {@see FnActionArgumentLeastType}
-    // We call the function with the slice of argument from the beginning to the element before the last element
+
+    // case the last value passed as argument is an instance of {@see FnActionArgumentLeastType}
+    // we call the function with the slice of argument from the beginning to the element before the last element
+    const _action = action as unknown as ObservableInputFunction;
     const argument: [
-      string,
       ObservableInputFunction,
-      ...QueryArguments<typeof action>
+      ...QueryArguments<typeof action>,
     ] = [
-      actionType,
-      action,
-      ...(((cacheConfig as FnActionArgumentLeastType)?.cacheQuery ||
-      args.length > 1
+      _action,
+      ...(((config as FnActionArgumentLeastType)?.cacheQuery || args.length > 1
         ? [...args].slice(0, args.length - 1)
         : args) as QueryArguments<typeof action>),
     ];
-    // Comparing functions in javascript is tedious, and error prone, therefore we will only rely
+
+    // compare functions in javascript is tedious, and error prone, therefore we will only rely
     // not rely on function prototype when searching cache for cached item by on constructed action
-    const requestArgument = buildCacheQuery([...argument], cacheConfig);
-    //#region Resolves action type or name
-    if (requestArgument) {
-      const cachedRequest = this.cache.get(requestArgument);
-      // Evaluate the staleTime and cacheTime to know if the request expires or not and need to be refetched
-      if (
-        typeof cachedRequest !== 'undefined' &&
-        cachedRequest !== null &&
-        !cachedRequest.expires()
-      ) {
-        cached = true;
-        // Set the request uuid to the cached request uuid if a cached request is found
-        // else, create a new request uuid
-        uuid = cachedRequest.id ?? Requests.guid();
-        // In case the request is cached, we do not proceed any further
-        return [uuid, NOQUERYACTION, cached];
-      }
-
-      if (cachedRequest?.expires()) {
-        this.cache.remove(cachedRequest);
-      }
-    }
-    // Here we make sure the request UUID is generated for the request if missing
-    uuid = uuid ?? Requests.guid();
-    //#endregion Resolves action type or name
-
-    //#region Creates request callback
+    const _arguments = buildCacheQuery([...argument], config);
+    const item = this.cache.get(_arguments);
+    const uuid = item ? item.id : Requests.guid();
     const _least = argument.slice(2) as [...QueryArguments<typeof action>];
-    const callback = () => {
-      return action(..._least);
-    };
-    //#region Creates request callback
 
-    //#region If request should be cached, we add request to cache
-    if (cacheConfig) {
-      this.cache.add(
-        cachedQuery({
-          objectid: uuid,
-          callback,
-          properties: cacheConfig,
-          argument: requestArgument,
-          refetchCallback: (response) => {
-            this.dispatch$({
-              name: QUERY_RESULT_ACTION,
-              payload: {
-                id: uuid,
-                response,
-                ok: true,
-              } as QueryState,
-            });
-          },
-          errorCallback: (error) => {
-            this.dispatch$({
-              name: QUERY_RESULT_ACTION,
-              payload: {
-                id: uuid,
-                error,
-                ok: false,
-                state: QueryStates.ERROR,
-              } as QueryState,
-            });
-          },
-          view: cacheConfig.defaultView,
-        })
-      );
-    }
-    //#endregion If request should be cached, we add request to cache
-    return [
-      uuid,
-      {
-        name: actionType,
-        payload: { argument, id: uuid, callback },
-      } as Required<Action<QueryPayload>>,
-      cached,
-    ];
-  }
-
-  invoke<T extends (...args: any) => void>(
-    action: T,
-    ...args_0: QueryArguments<T>
-  ) {
-    return useQuerySelector(
-      this.state$,
-      this.cache
-    )(this.dispatch(action, ...args_0));
-  }
-
-  // Dispatch method implementation
-  dispatch<T extends (...args: any) => void>(
-    action: T,
-    ...args: [...QueryArguments<T>]
-  ) {
-    const [uuid, _action, cached] = this.resolve(action as any, ...args);
-    // In case the request is cached, we do not dispatch any request action as the
-    // The selector will return the return the new state of the request query
-    if (!cached && _action !== NOQUERYACTION) {
-      this.dispatch$(_action as Required<Action<unknown>>);
-    }
-    return uuid;
+    return createobservable(this.cache, () => _action(..._least), config, {
+      id: uuid,
+      argument: _arguments,
+    });
   }
 
   destroy() {
     this.cache.clear();
-    this.destroy$.next();
   }
 }
 
 /**
- * Creates an instance of the query manager class
+ * creates an instance of the query manager class
  * It's a factory function that creates the default query manager instance
  */
 export function createQueryManager(logger?: Logger) {
