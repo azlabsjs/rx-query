@@ -1,7 +1,15 @@
 import { Observable } from 'rxjs';
-import { createQueryManager } from './base';
-import { Disposable, QueryArguments, QueryManager, QueryState, UnknownType } from './types';
-import { Logger } from './caching';
+import { createQuery } from './queries';
+import {
+  CachedQueryState,
+  Disposable,
+  Logger,
+  QueryArguments,
+  QueryManager,
+  QueryState,
+  UnknownType,
+} from './types';
+import { createCache } from './caching';
 
 /**
  * Holds a static reference to the query manager instance
@@ -13,7 +21,7 @@ import { Logger } from './caching';
 let instance!: QueryManager<Observable<QueryState>> & Disposable;
 
 /** @internal */
-type InvokeQueryType<R> = <T extends (...args: UnknownType) => void>(
+type InvokeQueryType<R> = <T extends (...args: UnknownType) => unknown>(
   action: T,
   ...args: [...QueryArguments<T>]
 ) => R;
@@ -31,7 +39,7 @@ type InvokeQueryType<R> = <T extends (...args: UnknownType) => void>(
 export function useQueryManager(logger?: Logger) {
   // query manager closure factory function
   function createClosure(manager: QueryManager<Observable<QueryState>>) {
-    return <T extends (...args: UnknownType[]) => void>(
+    return <T extends (...args: UnknownType[]) => unknown>(
       action: T,
       ...args: [...QueryArguments<T>]
     ) => {
@@ -41,10 +49,9 @@ export function useQueryManager(logger?: Logger) {
 
   if (instance === null || typeof instance === 'undefined') {
     logger?.log('Creating new query manager instance...');
-    const _instance = createQueryManager(logger);
+    const _instance = createQuery(createCache<CachedQueryState>(logger));
     const closure = createClosure(_instance);
 
-    // define `invoke` method on the closure instance
     Object.defineProperty(closure, 'invoke', {
       value: <T extends (...args: UnknownType[]) => void>(
         action: T,
@@ -61,7 +68,6 @@ export function useQueryManager(logger?: Logger) {
       Disposable;
   }
 
-  // Return the query manager instance
   return instance as QueryManager<Observable<QueryState>> &
     InvokeQueryType<Observable<QueryState>> &
     Disposable;

@@ -1,20 +1,16 @@
-import { deepEqual, isPrimitive } from '@azlabsjs/utilities';
-import { QueryArguments, UnknownType } from '../types';
-import { CacheQueryConfig, Logger } from './types';
+import { QueryArguments, UnknownType, CacheQueryConfig, Logger } from './types';
 
 // @internal
-type TypeDef = {
-  id: string | number;
+export type TypeDef = {
+  id?: string | number;
   argument: unknown;
-  destroy: () => void;
-  expires: () => boolean;
 };
 
 /**
  * @internal internal caching implementation of queries.
  *
  */
-export class Cache<T extends Partial<TypeDef> = Partial<TypeDef>> {
+export class Cache<T extends object = object> {
   /**
    * @internal state of the cache instance
    */
@@ -32,7 +28,7 @@ export class Cache<T extends Partial<TypeDef> = Partial<TypeDef>> {
   clear() {
     this.logger?.log(`Flushing cache...`);
     for (const item of this._state ?? []) {
-      if (typeof item.destroy === 'function') {
+      if ('destroy' in item && typeof item.destroy === 'function') {
         item.destroy();
       }
     }
@@ -41,8 +37,6 @@ export class Cache<T extends Partial<TypeDef> = Partial<TypeDef>> {
 
   /**
    * add an item to the cache
-   *
-   * @param item
    */
   add(item: T): void {
     this.logger?.log(`Pushing into cache: `, item);
@@ -52,26 +46,26 @@ export class Cache<T extends Partial<TypeDef> = Partial<TypeDef>> {
 
   /**
    * checks if the cache contains a specific key
-   *
-   * @param argument
    */
-  has(argument: unknown) {
+  has(argument: T | ((items: T) => boolean)) {
+    if (typeof argument === 'function') {
+      return !!this._state.find(argument);
+    }
     return this.indexOf(argument) !== -1;
   }
 
   /**
    * return the element in the cache matching the provided argument
-   *
-   * @param argument
    */
-  get(argument: unknown) {
+  get(argument: T | ((items: T) => boolean)) {
+    if (typeof argument === 'function') {
+      return this._state.find(argument);
+    }
     return this.at(this.indexOf(argument));
   }
 
   /**
    * cache is empty if all element has been removed from the cache
-   *
-   * @returns
    */
   isEmpty() {
     return this.length === 0;
@@ -79,14 +73,21 @@ export class Cache<T extends Partial<TypeDef> = Partial<TypeDef>> {
 
   /**
    * deletes an item from the cache
-   *
-   * @param argument
    */
-  remove(argument: unknown) {
-    return this.removeAt(this.indexOf(argument));
+  remove(argument: T | ((items: T) => boolean)) {
+    let value: T | undefined;
+
+    if (typeof argument === 'function') {
+      value = this._state.find(argument);
+    } else {
+      value = argument;
+    }
+
+    if (value) {
+      this.removeAt(this.indexOf(value));
+    }
   }
 
-  //#region Miscellanous
   private at(index: number) {
     return index === -1 || index > this._state.length - 1
       ? undefined
@@ -99,63 +100,36 @@ export class Cache<T extends Partial<TypeDef> = Partial<TypeDef>> {
     // When removing element from cache we call destroy method
     // in order to unsubscribe to any observable being run internally
     for (const value of values) {
-      if (value && typeof value.destroy === 'function') {
+      if (value && 'destroy' in value && typeof value.destroy === 'function') {
         value.destroy();
       }
     }
     this._state = items;
   }
 
-  private indexOf(argument: unknown) {
-    // first we apply an strict equality on the query id and payload against
-    // the query value
-    if (isPrimitive(argument)) {
-      return this._state.findIndex(
-        (query) => query.id === argument || query.argument === argument
-      );
-    }
-
-    // case the key is not found, index will still be -1, therefore we search
-    return this._state.findIndex((query) => {
-      if (
-        ((typeof query.argument === 'undefined' || query.argument === null) &&
-          typeof argument !== 'undefined' &&
-          argument !== null) ||
-        ((typeof argument === 'undefined' || argument === null) &&
-          typeof query.argument !== 'undefined' &&
-          query.argument !== null)
-      ) {
-        return false;
-      }
-
-      return deepEqual(query.argument, argument);
-    });
-  }
-
-  invalidate(argument: unknown) {
-    this.logger?.log(`invalidating cache item: `, argument, this._state);
-    const i = this.indexOf(argument);
-    if (i !== -1) {
-      const query = this.at(i);
-      if (query && typeof query.destroy === 'function') {
-        query.destroy();
-      }
-      this.removeAt(i);
-    }
-    this.logger?.log('invalidated cached item: ', this._state);
+  private indexOf(argument: T) {
+    return this._state.findIndex((q) => q === argument);
   }
 
   prune() {
     for (const value of this._state) {
-      if (value && typeof value.expires === 'function' && value.expires()) {
-        if (value && typeof value.destroy === 'function') {
+      if (
+        value &&
+        'expired' in value &&
+        typeof value.expired === 'function' &&
+        value.expired()
+      ) {
+        if (
+          value &&
+          'destroy' in value &&
+          typeof value.destroy === 'function'
+        ) {
           value.destroy();
         }
         this.remove(value);
       }
     }
   }
-  //#endregion
 }
 
 /** @internal */
@@ -176,8 +150,8 @@ export function useDefaultCacheConfig() {
 /**
  * @internal creates a queries cache instance
  */
-export function createCache(logger?: Logger) {
-  return new Cache(logger);
+export function createCache<T extends TypeDef = TypeDef>(logger?: Logger) {
+  return new Cache<T>(logger);
 }
 
 /** @internal */
@@ -185,21 +159,25 @@ export function buildCacheQuery<
   T extends (...args: UnknownType) => UnknownType,
 >(
   argument: [T, ...QueryArguments<T>],
-  config?: CacheQueryConfig & { name: string }
+  config?: CacheQueryConfig & { name?: string }
 ) {
   const args = argument as [T, ...QueryArguments<T>];
   let name!: string;
   if (config && typeof config.name !== 'undefined' && config.name !== null) {
     name = config.name;
   } else {
-    const fn = args[1];
-    const funcName = fn.name === '' ? undefined : fn.name;
-    const parameters = fn.toString().match(/\( *([^)]+?) *\)/gi);
-    name =
-      fn.prototype ??
-      `${funcName ?? `native anonymous`}${
-        parameters ? parameters[0] : '()'
-      } { ... }`;
+    const fn = args[0];
+
+    if (typeof fn !== 'undefined' && fn !== null) {
+      const descriptor = String('name' in fn ? fn.name : '').trim();
+      const parameters = fn.toString().match(/\( *([^)]+?) *\)/gi);
+      name =
+        fn.prototype ??
+        `${descriptor ?? `native anonymous`}${
+          parameters ? parameters[0] : '()'
+        } { ... }`;
+    }
   }
-  return [args[0], name, ...argument.slice(2)];
+
+  return [name, ...argument.slice(1)];
 }

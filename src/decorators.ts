@@ -1,10 +1,11 @@
-import { CacheQueryConfig, Logger, useDefaultCacheConfig } from './caching';
+import { CacheQueryConfig, Logger } from './types';
 import { _useQuery, useQuery } from './helpers';
 import {
   ObserveKeyType,
   QueryProviderType,
   QueryStateLeastParameters,
 } from './types';
+import { useDefaultCacheConfig } from './caching';
 
 /**
  * Class property decorator sending query.
@@ -46,10 +47,8 @@ export const Query = <T>(
 };
 
 /**
- * Decorates a class property use to send query to backend server using the HTTP
- * Query client insterface
+ * Decorates a class property use to send query
  *
- * @returns
  */
 export const QueryDispatch = () => {
   return <TargetType>(target: TargetType, propertyKey: string) => {

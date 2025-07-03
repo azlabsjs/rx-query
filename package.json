@@ -67,6 +67,7 @@
         "eslint": "^9.30.0",
         "husky": "^9.1.7",
         "jest": "^30.0.3",
+        "jest-environment-jsdom": "^30.0.4",
         "jest-watch-typeahead": "^3.0.1",
         "prettier": "^3.6.2",
         "size-limit": "^11.2.0",
@@ -75,10 +76,10 @@
         "typescript": "^5.8.3"
     },
     "peerDependencies": {
-        "rxjs": "^6.0 || ^7.8.0",
         "@azlabsjs/functional": "^0.2.10",
         "@azlabsjs/rx-hooks": "^0.2.10",
-        "@azlabsjs/utilities": "^0.2.10"
+        "@azlabsjs/utilities": "^0.2.10",
+        "rxjs": "^6.0 || ^7.8.0"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com/@azlabsjs"

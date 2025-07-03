@@ -17,15 +17,10 @@ import {
   UnknownType,
 } from './types';
 import { useQueryManager } from './singleton';
-import { useQuerySelector as internalUseQuerySelector } from './internal';
 
-/**
- * @interrnal
- *
- * Creates query parameters by parsing query params options
- */
+/** @interrnal creates query parameters by parsing query params options */
 export function createQueryParams<
-  TQuery = string | number | Record<string, unknown>
+  TQuery = string | number | Record<string, unknown>,
 >(query?: TQuery) {
   const queryType = typeof query;
   if (queryType === 'undefined' || query === null) {
@@ -40,59 +35,68 @@ export function createQueryParams<
 }
 
 /**
- * Refetch a given query instance
+ * refetch a given query instance
  */
-export function refetchQuery<T extends Record<string, unknown>>(query: T) {
+export function refetchQuery<T>(query: T) {
   if (
     typeof query === 'object' &&
     query !== null &&
-    typeof query['refetch'] === 'function'
+    'refetch' in query &&
+    typeof query.refetch === 'function'
   ) {
     query.refetch();
   }
 }
 
 /**
- * Invalidate query instance if exists. This action will remove item from cache
+ * invalidate query instance if exists. This action will remove item from cache
  * an stop any ongoing request to refetch the cached query in background
  */
-export function invalidateQuery<T extends Record<string, unknown>>(query: T) {
+export function invalidateQuery<T>(query: T) {
   if (
     typeof query === 'object' &&
     query !== null &&
+    'invalidate' in query &&
     typeof query.invalidate === 'function'
   ) {
     query.invalidate();
   }
 }
 
+/** @internal */
+export function isquerystate(p: unknown): p is QueryState {
+  return typeof p === 'object' && p != null && 'state' in p && 'pending' in p;
+}
+
 /**
- * Global function that allows developper to check if a query is
+ * global function that allows developper to check if a query is
  * still runing and has not yet complete or in pending state
  */
-export function queryIsLoading(query: QueryState) {
-  return query.state === QueryStates.LOADING || query.pending === true;
+export function queryIsLoading<T>(query: T) {
+  if (isquerystate(query)) {
+    return query.state === QueryStates.LOADING || query.pending === true;
+  }
+  return false;
 }
 
 /**
- * Check if the query completed with error
+ * check if the query completed with error
  */
 export function queryHasError(query: QueryState) {
-  return query.state === QueryStates.ERROR;
+  if (isquerystate(query)) {
+    return query.state === QueryStates.ERROR;
+  }
+  return false;
 }
 
 /**
- * Global function to check if the query is completed
+ * global function to check if the query is completed
  */
 export function queryCompleted(query: QueryState) {
   return query.state === QueryStates.SUCCESS;
 }
 
-/**
- * Query [body] stream of the query response if any or returns the
- * entire response if none
- *
- */
+/** query [body] stream of the query response if any or returns the entire response if none */
 export function queryResultBody<TResult = unknown>(
   key?: string
 ): OperatorFunction<QueryState, TResult> {
@@ -134,7 +138,7 @@ export function parseQueryArguments<T>(
     _arguments = (
       typeof cacheConfig !== 'undefined' && cacheConfig !== null
         ? [...(_args ?? []), cacheConfig]
-        : _args ?? []
+        : (_args ?? [])
     ) as [...QueryStateLeastParameters<T>];
   } else if (typeof params === 'function') {
     _query = _params as T;
@@ -143,7 +147,7 @@ export function parseQueryArguments<T>(
   return [_query, _arguments, observe] as [
     T,
     [...QueryStateLeastParameters<T>],
-    ObserveKeyType
+    ObserveKeyType,
   ];
 }
 
@@ -165,8 +169,13 @@ export function as<T>(value: unknown) {
   return value as T;
 }
 
-/** @description Provides developpers with a function for observables type interence */
+/** @deprecated use `observale<T>(value) instead` */
 export function observableReturnType<T>(value: unknown) {
+  return observable<T>(value);
+}
+
+/** @description provides type cast developpers with a function for observables type interence */
+export function observable<T>(value: unknown): Observable<T> {
   return value as Observable<T>;
 }
 
@@ -207,7 +216,7 @@ export function useQuery<T>(
  */
 export function useDebug<TReturn = UnknownType>(logger: Logger) {
   return <T>(params: T, ...args: [...QueryStateLeastParameters<T>]) =>
-    observableReturnType<TReturn>(_useQuery(logger, params, ...args));
+    observable<TReturn>(_useQuery(logger, params, ...args));
 }
 
 /** @internal actual query factory function */
@@ -244,8 +253,8 @@ export function _useQuery<T>(
   ) as Observable<UnknownType>;
 }
 
-/**
- * @deprecated `useQuerySelector` is intended to be used internal but
- * was exposed in previous release, but will be removed from version >=0.3.x
- */
-export const useQuerySelector = internalUseQuerySelector;
+
+/** @descriptions calls javascript log function with date time information */
+export function Log(...args: unknown[]) {
+  console.log(`[${new Date().toLocaleString()}]`, ...args);
+}

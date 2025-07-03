@@ -1,9 +1,64 @@
-import { Observable, ObservableInput } from 'rxjs';
-import { CacheQueryConfig } from './caching';
+import { Observable, ObservableInput, Subscriber } from 'rxjs';
 
 /** @internal */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type UnknownType = any;
+
+/** @description type declaration for logging frameworks implementation */
+export type Logger = {
+  log(message: string, ...args: UnknownType): void;
+};
+
+export type CacheType<T = UnknownType> = {
+  /**
+   * removes all items from the cache system
+   */
+  clear: () => void;
+
+  /**
+   * add an item to the cache
+   *
+   * @param item
+   */
+  add: (item: T) => void;
+
+  /**
+   * check if the cache contains a specific key
+   *
+   * @param argument
+   */
+  has: (argument: unknown) => boolean;
+
+  /**
+   * return the element in the cache matching the provided argument
+   *
+   * @param argument
+   */
+  get: (argument: unknown) => T | undefined;
+
+  /**
+   *  @description cache is empty if all element has been removed from the cache
+   *
+   */
+  isEmpty: () => boolean;
+
+  /**
+   * @description invalidate a gache item present in the cache
+   */
+  delete: (argument: unknown) => void;
+};
+
+/** @description cache query configuration */
+export type CacheQueryConfig = {
+  retries?: number | ((attempt: number, error: unknown) => boolean);
+  retryDelay?: number | ((retryAttempt: number) => number);
+  refetchInterval?: number;
+  refetchOnWindowFocus?: boolean;
+  refetchOnReconnect?: boolean;
+  staleTime?: number;
+  cacheTime?: number;
+  defaultView?: Window;
+};
 
 //#region queries service types
 /** @description Enumerated value of the query object state */
@@ -27,23 +82,23 @@ export type QueryState<TPayload = unknown> = {
   argument: TPayload;
 
   /**
-   * Performs a background refetch of the query response
+   * performs a background refetch of the query response
    */
-  refetch: () => void;
+  refetch?: () => void;
 
   /**
    * invalidate the cached query. Once the query is invalidated,
    * any subsequent call to fetch a new query response should not
    * provide from cache
    */
-  invalidate: () => void;
+  invalidate?: () => void;
 
   // Optional properties
   response?: unknown;
   method?: string;
   ok?: boolean;
   error?: unknown;
-  timestamps: {
+  timestamps?: {
     createdAt?: number;
     updatedAt?: number;
   };
@@ -51,7 +106,9 @@ export type QueryState<TPayload = unknown> = {
 
 /** @internal */
 export type QueryPayload<
-  TFunc extends (...args: UnknownType[]) => void = (...args: UnknownType[]) => void
+  TFunc extends (...args: UnknownType[]) => void = (
+    ...args: UnknownType[]
+  ) => void,
 > = {
   argument: [string, TFunc, ...QueryArguments<TFunc>];
   callback: () => ObservableInput<unknown>;
@@ -60,7 +117,7 @@ export type QueryPayload<
 
 /** @internal */
 export type FnActionArgumentLeastType = CacheQueryConfig & {
-  name: string;
+  name?: string;
   cacheQuery: boolean;
 };
 
@@ -99,6 +156,7 @@ export interface QueryManager<R> {
 }
 
 /** @internal */
+/** @deprecated */
 export type State = {
   performingAction: boolean;
   requests: QueryState[];
@@ -107,7 +165,7 @@ export type State = {
 
 /**
  * @deprecated
- * 
+ *
  *  @internal
  */
 export type BaseQueryType<TMethod extends string, TObserve = string> = {
@@ -123,7 +181,7 @@ export type BaseQueryType<TMethod extends string, TObserve = string> = {
  */
 export type QueryType<
   TMethod extends string = string,
-  TObserve = string
+  TObserve = string,
 > = BaseQueryType<TMethod, TObserve> & {
   body?: unknown;
   params?: Record<string, UnknownType> | { [prop: string]: string | string[] };
@@ -135,7 +193,7 @@ export type QueryParameter<TFunc, TMethod extends string> = {
   arguments?: [...QueryArguments<TFunc>];
 };
 
-/** @description Query client base interface */
+/** @deprecated Query client base interface */
 export type QueryClientType<TMethod extends string> = {
   /**
    * Sends a client query to a server enpoint and returns
@@ -149,10 +207,10 @@ export type QueryClientType<TMethod extends string> = {
   ): Observable<QueryState>;
 };
 
-/** @description Provides implementation for querying a resource */
+/** @description provides implementation for querying a resource */
 export type QueryProviderType<
   TQueryParameters extends [...UnknownType[]] = UnknownType,
-  ProvidesType = UnknownType
+  ProvidesType = UnknownType,
 > = {
   /**
    * Sends a client query to a server enpoint and returns
@@ -166,18 +224,17 @@ export type QueryProviderType<
 /** @description Functional type definition for user provided query function */
 export type QueryProviderFunc<
   TQueryParameters extends [...UnknownType[]] = UnknownType,
-  ProvidesType = UnknownType
+  ProvidesType = UnknownType,
 > = (...args: TQueryParameters) => ObservableInput<ProvidesType>;
 //#endregion
 
-//#region useQuery type declarations
 /** @description Union type declaration for query state to observe */
 export type ObserveKeyType = 'query' | 'response' | 'body';
 
 /** @internal */
 type QueryProviderProvidesParamType<
   TParam extends [...unknown[]],
-  T extends QueryProviderType<TParam>
+  T extends QueryProviderType<TParam>,
 > = Parameters<T['query']>;
 
 /** @internal */
@@ -192,11 +249,26 @@ export type QueryStateLeastParameters<F> = F extends (
 ) => unknown
   ? [...A, FnActionArgumentLeastType] | [...A]
   : F extends QueryProviderType
-  ? [...QueryProviderProvidesParamType<Parameters<F['query']>, F>]
-  : never;
+    ? [...QueryProviderProvidesParamType<Parameters<F['query']>, F>]
+    : never;
 
 /** Cached query provider configuration type declaration */
 export type CacheQueryProviderType = QueryProviderType & {
   cacheConfig: CacheQueryConfig & QueryProviderQuerConfigType;
 };
-//#endregion useQuery type declarations
+//#endregion
+
+/** @internal */
+type CachedInternalState = {
+  observable?: Observable<QueryState> | null;
+  subscriber?: Subscriber<unknown> | null;
+  interval?: number | undefined;
+};
+
+/** exported cached query state type declaration */
+export type CachedQueryState = QueryState & {
+  destroy?: () => void;
+  expired?: () => boolean;
+  local?: CachedInternalState;
+  expiresAt?: Date;
+};

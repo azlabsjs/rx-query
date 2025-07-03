@@ -6,21 +6,15 @@ import {
   first,
   map,
 } from 'rxjs';
-import { QueryState, State } from './types';
+import { QueryState } from './types';
 
-/**
- * Creates a selector that return the first value matching a given predicate
- *
- * @internal
- */
+/** @internal creates a selector that return the first value matching a given predicate */
 export function firstWhere<T = unknown>(predicate: (value: T) => boolean) {
   return (observable$: Observable<T>) =>
     observable$.pipe(filter(predicate), first());
 }
 
-/**
- * @description RxJS operator that returns the api response from
- */
+/** @description rxjs operator that returns the api response from */
 export function queryResult<TResponse>(
   project?: (query: QueryState) => TResponse
 ): OperatorFunction<QueryState, TResponse> {
@@ -30,16 +24,4 @@ export function queryResult<TResponse>(
       distinctUntilChanged(),
       project ? map(project) : map((query) => query.response as TResponse)
     );
-}
-
-
-/**
- * @description provides a selector of query that can be applied on a query state observable
- */
-export function selectQuery(argument: unknown) {
-  return (observable$: Observable<State>) =>
-    observable$.pipe(
-      map((state) => state.requests.find((query) => query.id === argument)),
-      filter((state) => typeof state !== 'undefined' && state !== null)
-    ) as Observable<QueryState>;
 }

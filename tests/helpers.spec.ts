@@ -1,8 +1,8 @@
 import { interval, lastValueFrom, of, take, tap } from 'rxjs';
 import {
   QueryProviderType,
-  QueryStateType,
-  observableReturnType,
+  QueryState,
+  observable,
   queryIsLoading,
   useQuery,
 } from '../src';
@@ -23,7 +23,7 @@ export class TestQueryStateProvider
 
 describe('useQuery helper tests', () => {
   it('should invoke the query function and cache the query result', async () => {
-    const query$ = observableReturnType<QueryStateType>(
+    const query$ = observable<QueryState>(
       useQuery(
         (name: string, lastname: string) => {
           return of({ name, lastname });
