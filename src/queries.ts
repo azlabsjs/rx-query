@@ -6,7 +6,6 @@ import {
   Observable,
   ObservableInput,
   observeOn,
-  Subscription,
 } from 'rxjs';
 import { buildCacheQuery, Cache, createCache, TypeDef } from './caching';
 import {
@@ -55,26 +54,23 @@ function createobservable(
   refetchCallback?: (response: unknown) => void,
   errorCallback?: (error: unknown) => void
 ) {
-  let subscription: Subscription | undefined = undefined;
-  let staled: boolean = false;
-  let lastError: unknown = undefined;
-  let tries: number = 0;
-  let requesting: boolean = false;
-
-  //
   const _req = req;
   const {
     defaultView: runtime,
     retries,
     staleTime,
     cacheTime,
+    retryDelay,
   } = properties ?? {};
   let _state: CachedQueryState = _createInitialState(state);
   const _cachedState = cache.get(createSearch(_state));
-  const _hasExpired = _cachedState ? _expired(_cachedState) : false;
+  const _hasExpired = _cachedState ? _expired(_cachedState) : true;
+
+  // Log('cached item expired: ', _hasExpired);
 
   if (_cachedState && !_hasExpired && _cachedState.local?.observable) {
-    _state = _cachedState;
+    // Log('cached item exist in cache, creating observable from source');
+    // _state = _cachedState;
     const _observable$ = _cachedState.local.observable;
     return new Observable<CachedQueryState>((subscriber) => {
       // this create an infinite observable, which will emitted until the source
@@ -89,10 +85,11 @@ function createobservable(
 
   if (_cachedState && _hasExpired) {
     cache.remove(_cachedState);
+    // Log('removed item from cache: ', cache.items());
   }
 
   function _clearInterval() {
-    // Log('Clearing interval...');
+    // Log('clearing interval...', _state.local?.interval);
     // stop refetch observable listener
     if (_state.local?.interval) {
       clearInterval(_state.local.interval);
@@ -117,7 +114,8 @@ function createobservable(
     _setState({ ..._state, expiresAt: _createExpireAt(date) });
   }
 
-  function destroy() {
+  function _destroy() {
+    // Log('called destroy...');
     _clearInterval();
 
     if (runtime) {
@@ -129,11 +127,11 @@ function createobservable(
   }
 
   function _onRuntimeReconnect() {
-    refetch();
+    _refetch();
   }
 
   function _onRuntimeFocus() {
-    refetch();
+    _refetch();
   }
 
   function _refetchOnFocus() {
@@ -149,7 +147,6 @@ function createobservable(
   }
 
   function _refetchOnInterval(req: () => ObservableInput<unknown>, ms: number) {
-    // Log('Calling refetch on interval...');
     if (typeof ms === 'undefined' || ms === null) {
       return;
     }
@@ -157,9 +154,9 @@ function createobservable(
     if (typeof ms === 'number' && (ms < 0 || ms === Infinity)) {
       return;
     }
-
+    // Log('calling refetch on interval...');
     _setInternalState(_state, {
-      interval: setInterval(() => request(req), ms) as unknown as number,
+      interval: setInterval(() => _request(req), ms) as unknown as number,
     });
   }
 
@@ -183,12 +180,12 @@ function createobservable(
       timestamps: { createdAt: Date.now() },
       state: QueryStates.LOADING,
       refetch: () => {
-        refetch();
+        _refetch();
       },
       invalidate: () => {
         _setExpiredAt();
         cache.remove(_state);
-        destroy();
+        _destroy();
       },
     } as CachedQueryState;
   }
@@ -222,6 +219,7 @@ function createobservable(
   }
 
   function _setState(s: CachedQueryState) {
+    // Log('Setting state: ', s);
     _state = s;
 
     // Remove _staled state
@@ -237,13 +235,14 @@ function createobservable(
     _state.local?.subscriber?.next(rest);
   }
 
-  async function refetch() {
+  async function _refetch() {
+    // Log('called refetch...');
     // clear refetch to stop the current refetch observable
     _clearInterval();
     const { refetchInterval } = properties;
 
     // do a query to update the state
-    request(_req);
+    _request(_req);
 
     // reconfigure the refetch action
     if (refetchInterval) {
@@ -251,83 +250,85 @@ function createobservable(
     }
   }
 
-  function canRetry() {
+  function _canRetry() {
+    const tries = _state.local?.tries ?? 0;
+    const lastError = _state?.local?.lastError;
     return (
       (typeof retries === 'number' && tries <= retries) ||
       (typeof retries === 'function' && retries(tries, lastError))
     );
   }
 
-  function markStaled() {
+  function _markStaled() {
     if (
       typeof staleTime === 'undefined' ||
       staleTime === null ||
       staleTime === 0
     ) {
-      staled = true;
+      _setInternalState(_state, { staled: true });
     } else {
       const t = setTimeout(() => {
-        staled = true;
+        _setInternalState(_state, { staled: true });
         clearTimeout(t);
       }, staleTime);
     }
   }
 
-  function retry() {
+  function _retry() {
     // case cannot retry, we drop out of the execution context
-    if (!canRetry()) {
+    if (!_canRetry()) {
       return;
     }
 
+    let tries = _state.local?.tries ?? 0;
     tries += 1;
-    const { retryDelay } = properties;
+    _setInternalState(_state, { tries });
     let delay: number;
     if (typeof retryDelay === 'function') {
       delay = retryDelay(tries);
     } else {
-      delay = retryDelay ?? 1000;
+      delay = retryDelay ?? 1000; // By default we wait for 1s before running the retry request
     }
 
     const timeout = setTimeout(() => {
-      request(_req);
+      _request(_req);
       clearTimeout(timeout);
     }, delay);
   }
 
-  function request(req: () => ObservableInput<unknown>) {
-    if (!staled || requesting) {
+  function _request(req: () => ObservableInput<unknown>) {
+    if (!_state.local?.staled || !!_state.local?.requesting) {
       return;
     }
-    requesting = true;
+    _setInternalState(_state, { requesting: true });
     // before executing a new request, unsubscribe from current context
     const observable$ = from(req()).pipe(
       observeOn(asyncScheduler),
       catchError((error) => {
-        lastError = error;
+        _setInternalState(_state, { lastError: error });
         // if the tries is more than or equal to the configured tries,
         // we trigger an error call on the cached instance
-        if (!canRetry() && typeof errorCallback === 'function') {
+        if (!_canRetry() && typeof errorCallback === 'function') {
           errorCallback(error);
         } else {
-          retry();
+          _retry();
         }
         // return an empty Observable to swallow the error
         return EMPTY;
       })
     );
 
-    if (subscription) {
-      subscription.unsubscribe();
-    }
+    // unsubscribe from the query observable
+    _state.local?.subscription?.unsubscribe();
 
     if (_state.local?.subscriber) {
-      subscription = observable$.subscribe({
+      const subscription = observable$.subscribe({
         next: (response) => {
-          requesting = false;
-          // unmark the query as stale after each successful state
-          // set lastError to undefined if request ends successfully
-          lastError = undefined;
-          staled = false;
+          _setInternalState(_state, {
+            requesting: false,
+            lastError: undefined,
+            staled: false,
+          });
 
           // update request state
           _setState({
@@ -340,22 +341,25 @@ function createobservable(
           }
 
           // mark the query as stale based on the staleTime configuration
-          markStaled();
+          _markStaled();
 
           // next the response to the subscriber to updated current value
           _next(_state);
         },
         error: (err) => {
-          requesting = false;
+          _setInternalState(_state, { requesting: false });
           _setState(_createErrorPayload(_state, err));
         },
       });
+
+      _setInternalState(_state, { subscription: subscription });
     }
   }
 
   const o = new Observable<CachedQueryState>((subscriber) => {
     const _unsubscribe = subscriber.unsubscribe.bind(subscriber);
     const _overridenSubscribe = () => {
+      // Log('called unsubscribe.');
       // we clear any background task whenever we unsubscribe from the subscriber
       // we prevent resources leaks
       _clearInterval();
@@ -375,28 +379,29 @@ function createobservable(
     _next(_state);
 
     // initial subscription
-    subscription = from(_req())
+    const subscription = from(_req())
       .pipe(observeOn(asyncScheduler))
       .subscribe({
         next: (response) => {
-          requesting = false;
+          _setInternalState(_state, { requesting: false });
           _setState({
             ..._createResponsePayload(_state, response),
             expiresAt: _createExpireAt(),
           });
 
           // mark the query as stale based on the staleTime configuration
-          markStaled();
+          _markStaled();
 
           // Next the response to the subscriber to updated current value
           _next(_state);
         },
         error: (err) => {
-          requesting = false;
+          _setInternalState(_state, { requesting: false });
           subscriber.error(err);
           _setState(_createErrorPayload(_state, err));
         },
       });
+    _setInternalState(_state, { subscription: subscription });
 
     // case request is cached and request is configured to be executed on an interval basics
     // the local state in cache should have interval configured
@@ -433,6 +438,7 @@ function createobservable(
   return o;
 }
 
+/** @internal */
 function createSearch<
   T extends { argument: UnknownType; id?: string },
   T2 extends QueryState,

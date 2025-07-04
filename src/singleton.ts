@@ -18,7 +18,7 @@ import { createCache } from './caching';
  * instance of the query manager.
  *
  */
-let instance!: QueryManager<Observable<QueryState>> & Disposable;
+let instance!: Readonly<QueryManager<Observable<QueryState>> & Disposable>;
 
 /** @internal */
 type InvokeQueryType<R> = <T extends (...args: UnknownType) => unknown>(
@@ -38,13 +38,11 @@ type InvokeQueryType<R> = <T extends (...args: UnknownType) => unknown>(
  */
 export function useQueryManager(logger?: Logger) {
   // query manager closure factory function
-  function createClosure(manager: QueryManager<Observable<QueryState>>) {
+  function createClosure(q: QueryManager<Observable<QueryState>>) {
     return <T extends (...args: UnknownType[]) => unknown>(
       action: T,
       ...args: [...QueryArguments<T>]
-    ) => {
-      return manager.invoke.bind(manager)(action, ...args);
-    };
+    ) => q.invoke.bind(q)(action, ...args);
   }
 
   if (instance === null || typeof instance === 'undefined') {
@@ -64,8 +62,10 @@ export function useQueryManager(logger?: Logger) {
       value: () => _instance.destroy(),
     });
 
-    instance = closure as unknown as QueryManager<Observable<QueryState>> &
-      Disposable;
+    // freeze the closure object to prevent mutation of the object
+    instance = Object.freeze(
+      closure as unknown as QueryManager<Observable<QueryState>> & Disposable
+    );
   }
 
   return instance as QueryManager<Observable<QueryState>> &

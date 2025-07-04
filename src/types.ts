@@ -1,4 +1,4 @@
-import { Observable, ObservableInput, Subscriber } from 'rxjs';
+import { Observable, ObservableInput, Subscriber, Subscription } from 'rxjs';
 
 /** @internal */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -259,16 +259,25 @@ export type CacheQueryProviderType = QueryProviderType & {
 //#endregion
 
 /** @internal */
+// an internal state of the cache item which holds the cold `observable` created from query
+// function, the initial `subscriber` on which next is called, to produce output, the refetch
+// `interval` of the query, the `stale` state of the `lastError`, the current active `subscription`
+// to the cold observable
 type CachedInternalState = {
   observable?: Observable<QueryState> | null;
   subscriber?: Subscriber<unknown> | null;
   interval?: number | undefined;
+  subscription?: Subscription
+  staled?: boolean
+  lastError?: unknown
+  tries?: number
+  requesting?: boolean
 };
-
-/** exported cached query state type declaration */
+/** Exported cached query state type declaration */
 export type CachedQueryState = QueryState & {
   destroy?: () => void;
   expired?: () => boolean;
   local?: CachedInternalState;
+  extras?: unknown;
   expiresAt?: Date;
 };
