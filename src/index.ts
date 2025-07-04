@@ -47,7 +47,10 @@ export {
   State,
   CacheQueryProviderType,
   ObserveKeyType,
-  CachedQueryState
+  CachedQueryState,
+  CacheQueryConfig,
+  CacheType,
+  Logger
 } from './types';
 
 export { ProvidesQuery, QueryDispatch, Query, DebugQuery } from './decorators';
