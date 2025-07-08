@@ -1,7 +1,6 @@
 import { Observable } from 'rxjs';
 import { createQuery } from './queries';
 import {
-  CachedQueryState,
   Disposable,
   Logger,
   QueryArguments,
@@ -9,7 +8,6 @@ import {
   QueryState,
   UnknownType,
 } from './types';
-import { createCache } from './caching';
 
 /**
  * Holds a static reference to the query manager instance
@@ -27,17 +25,15 @@ type InvokeQueryType<R> = <T extends (...args: UnknownType) => unknown>(
 ) => R;
 
 /**
- * Provides a query manager singleton that might be used to handle queries of the application
+ * provides a query context singleton that might be used to handle queries of the application
  * that might or might not require caching.
  *
  * **Note**
- * Because the function uses a global singleton, developper is required to use it with
- * caution. It's mainly for fameworks that does not provide DI / DI container. If using
- * framework like angular, prefer usage @azlabjs/ngx-query {@see useQuery()} function
- * or {@see QueryProvider} service
+ * because the function uses a global singleton, developper is required to use it with
+ * caution. It's mainly for fameworks that does not provide DI / DI container.
  */
-export function useQueryManager(logger?: Logger) {
-  // query manager closure factory function
+export function useQueryContext(logger?: Logger) {
+  // query context closure factory function
   function createClosure(q: QueryManager<Observable<QueryState>>) {
     return <T extends (...args: UnknownType[]) => unknown>(
       action: T,
@@ -46,8 +42,7 @@ export function useQueryManager(logger?: Logger) {
   }
 
   if (instance === null || typeof instance === 'undefined') {
-    logger?.log('Creating new query manager instance...');
-    const _instance = createQuery(createCache<CachedQueryState>(logger));
+    const _instance = createQuery(logger);
     const closure = createClosure(_instance);
 
     Object.defineProperty(closure, 'invoke', {

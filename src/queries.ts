@@ -11,6 +11,7 @@ import { buildCacheQuery, Cache, createCache, TypeDef } from './caching';
 import {
   CachedQueryState,
   CacheQueryConfig,
+  CacheType,
   Disposable,
   FnActionArgumentLeastType,
   Logger,
@@ -496,13 +497,16 @@ export class Query implements QueryManager<Observable<QueryState>>, Disposable {
     ) {
       this._cache = createCache(logger);
     } else {
-      throw new Error(
-        `Expected constructor parameter to be an instance of 'Cache<T>' or 'Logger', got ${
-          typeof logger === 'object' && logger !== null
-            ? (logger as object).constructor.prototype
-            : typeof logger
-        }`
-      );
+      if (typeof logger !== 'undefined' && logger !== null) {
+        console.warn(
+          `expected constructor parameter to be an instance of 'Cache<T>' or 'Logger', got ${
+            typeof logger === 'object' && logger !== null
+              ? (logger as object).constructor.prototype
+              : typeof logger
+          }`
+        );
+      }
+      this._cache = createCache();
     }
   }
 
@@ -555,7 +559,7 @@ export class Query implements QueryManager<Observable<QueryState>>, Disposable {
  * It's a factory function that creates the default query manager instance
  */
 export function createQuery<T extends CachedQueryState = CachedQueryState>(
-  logger?: Logger | Cache<T>
+  logger?: Logger | CacheType<T>
 ) {
   return new Query(logger as unknown as Logger | Cache<CachedQueryState>);
 }

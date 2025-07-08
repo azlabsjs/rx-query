@@ -6,10 +6,7 @@ export type TypeDef = {
   argument: unknown;
 };
 
-/**
- * @internal internal caching implementation of queries.
- *
- */
+/** @internal internal caching implementation of queries. */
 export class Cache<T extends object = object> {
   /**
    * @internal state of the cache instance
@@ -26,7 +23,7 @@ export class Cache<T extends object = object> {
    * removes all items from the cache system
    */
   clear() {
-    this.logger?.log(`Flushing cache...`);
+    this.logger?.log(`flushing cache...`);
     for (const item of this._state ?? []) {
       if ('destroy' in item && typeof item.destroy === 'function') {
         item.destroy();
@@ -39,7 +36,7 @@ export class Cache<T extends object = object> {
    * add an item to the cache
    */
   add(item: T): void {
-    this.logger?.log(`Pushing into cache: `, item);
+    this.logger?.log(`publishing into cache: `, item);
     this._state = [item, ...(this._state ?? [])];
     this.logger?.log(`Pushed into cache: `, this._state);
   }

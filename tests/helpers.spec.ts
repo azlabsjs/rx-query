@@ -1,5 +1,14 @@
-import { interval, lastValueFrom, of, take, tap } from 'rxjs';
 import {
+  interval,
+  lastValueFrom,
+  Observable,
+  of,
+  Subscription,
+  take,
+  tap,
+} from 'rxjs';
+import {
+  Query,
   QueryProviderType,
   QueryState,
   observable,
@@ -8,6 +17,7 @@ import {
 } from '../src';
 
 import { ProvidesQuery } from '../src';
+import { deepEqual } from '@azlabsjs/utilities';
 
 @ProvidesQuery({
   observe: 'response',
@@ -18,6 +28,61 @@ export class TestQueryStateProvider
 {
   query(path: string, params?: Record<string, unknown>) {
     return of({ path, params });
+  }
+}
+
+function createResponse(response: Record<string, unknown>) {
+  return new Promise((resolve) => resolve(response));
+}
+
+let executionCount = 0;
+class MyClass {
+  @Query(
+    (path: string, method: string) => {
+      executionCount = executionCount + 1;
+      return createResponse({
+        title: 'In publishing and graphic design',
+        content: 'Lorem ipsum is a placeholder text commonly.',
+        createdAt: '2022-11-20 18:20',
+        path,
+        method,
+      });
+    },
+    'api/v1/books',
+    'GET',
+    {
+      cacheQuery: true,
+      staleTime: 2000,
+      refetchInterval: 10000,
+      cacheTime: 10_000,
+      name: 'get_books_component',
+      observe: 'response',
+    }
+  )
+  private book$!: Observable<QueryState>;
+  private subscription!: Subscription;
+  private callCount: number = 0;
+  private argument!: unknown;
+
+  public onInit() {
+    this.subscription = this.book$?.subscribe((response) => {
+      this.argument = response;
+      this.callCount++;
+    });
+  }
+
+  public getCallCount() {
+    return this.callCount;
+  }
+
+  public getCalledWith() {
+    return this.argument;
+  }
+
+  public onDestroy() {
+    if (this.subscription) {
+      this.subscription.unsubscribe();
+    }
   }
 }
 
@@ -71,5 +136,29 @@ describe('useQuery helper tests', () => {
       .subscribe();
     expect(true).toBe(true);
     await lastValueFrom(interval(2000).pipe(take(1)));
+  });
+
+  it('should test  MyClass', async () => {
+    const o = new MyClass();
+
+    o.onInit();
+
+    await new Promise<void>((resolve) => {
+      const t = setTimeout(() => {
+        o.onDestroy();
+        expect(o.getCallCount()).toEqual(1);
+        expect(
+          deepEqual(o.getCalledWith(), {
+            title: 'In publishing and graphic design',
+            content: 'Lorem ipsum is a placeholder text commonly.',
+            createdAt: '2022-11-20 18:20',
+            path: 'api/v1/books',
+            method: 'GET'
+          })
+        ).toBeTruthy();
+        resolve();
+        clearTimeout(t);
+      }, 2000);
+    });
   });
 });

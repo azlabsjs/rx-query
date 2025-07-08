@@ -1,4 +1,4 @@
-import { CacheQueryConfig, Logger } from './types';
+import { CacheQueryConfig, Logger, UnknownType } from './types';
 import { _useQuery, useQuery } from './helpers';
 import {
   ObserveKeyType,
@@ -23,13 +23,16 @@ export const DebugQuery = <T>(
 ) => {
   return <TargetType>(target: TargetType, propertyKey: string) => {
     Object.defineProperty(target, propertyKey, {
+      configurable: true,
+      enumerable: true,
+      writable: false, // freeze property value
       value: _useQuery(logger, params, ...args),
     });
   };
 };
 
 /**
- * Class property decorator sending query.
+ * class property decorator sending query.
  *
  * It caches the the result of the query and refetch it in the background
  * if client requested it to do so.
@@ -41,29 +44,34 @@ export const Query = <T>(
 ) => {
   return <TargetType>(target: TargetType, propertyKey: string) => {
     Object.defineProperty(target, propertyKey, {
+      configurable: true,
+      enumerable: true,
+      writable: false, // freeze property value
       value: _useQuery(null, params, ...args),
     });
   };
 };
 
 /**
- * Decorates a class property use to send query
+ * decorates a class property use to send query
  *
  */
 export const QueryDispatch = () => {
   return <TargetType>(target: TargetType, propertyKey: string) => {
     Object.defineProperty(target, propertyKey, {
+      configurable: true,
+      enumerable: true,
+      writable: false, // freeze property value
       value: useQuery.bind(target),
     });
   };
 };
 
-/** @description Decorates Query provider classes to add cache configuration values */
+/** @description decorates Query provider classes to add cache configuration values */
 export function ProvidesQuery(
   cacheConfig?: (CacheQueryConfig & { observe?: ObserveKeyType }) | boolean
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <T extends new (...args: any[]) => QueryProviderType>(
+  return <T extends new (...args: UnknownType[]) => QueryProviderType>(
     constructor: T
   ) => {
     const { name } = constructor;

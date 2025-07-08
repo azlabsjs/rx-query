@@ -14,10 +14,14 @@ export {
   observableReturnType,
   observable,
   useDebug,
-  Log
+  Log,
 } from './helpers';
 export { queryResult } from './rx';
-export { useQueryManager } from './singleton';
+export {
+  /** @deprecated use `useQueryContext()` instead */
+  useQueryContext as useQueryManager,
+  useQueryContext,
+} from './context';
 export {
   /** @deprecated type is expected to use bed internal */
   Action,
@@ -50,7 +54,7 @@ export {
   CachedQueryState,
   CacheQueryConfig,
   CacheType,
-  Logger
+  Logger,
 } from './types';
 
 export { ProvidesQuery, QueryDispatch, Query, DebugQuery } from './decorators';

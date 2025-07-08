@@ -149,7 +149,7 @@ export interface CommandInterface<R = unknown> {
 
 /** @description Query manager interface */
 export interface QueryManager<R> {
-  invoke<T extends (...args: UnknownType[]) => void>(
+  invoke<T extends (...args: UnknownType[]) => UnknownType>(
     action: T,
     ...args: [...QueryArguments<T>]
   ): R;
@@ -247,7 +247,7 @@ type QueryProviderQuerConfigType = {
 export type QueryStateLeastParameters<F> = F extends (
   ...args: infer A
 ) => unknown
-  ? [...A, FnActionArgumentLeastType] | [...A]
+  ? [...A, FnActionArgumentLeastType & { observe?: ObserveKeyType }] | [...A]
   : F extends QueryProviderType
     ? [...QueryProviderProvidesParamType<Parameters<F['query']>, F>]
     : never;
@@ -267,11 +267,11 @@ type CachedInternalState = {
   observable?: Observable<QueryState> | null;
   subscriber?: Subscriber<unknown> | null;
   interval?: number | undefined;
-  subscription?: Subscription
-  staled?: boolean
-  lastError?: unknown
-  tries?: number
-  requesting?: boolean
+  subscription?: Subscription;
+  staled?: boolean;
+  lastError?: unknown;
+  tries?: number;
+  requesting?: boolean;
 };
 /** Exported cached query state type declaration */
 export type CachedQueryState = QueryState & {

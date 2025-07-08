@@ -1,11 +1,4 @@
-import {
-  Observable,
-  OperatorFunction,
-  from,
-  isObservable,
-  map,
-  of,
-} from 'rxjs';
+import { Observable, OperatorFunction, map } from 'rxjs';
 import { queryResult } from './rx';
 import {
   CacheQueryProviderType,
@@ -16,7 +9,7 @@ import {
   QueryStates,
   UnknownType,
 } from './types';
-import { useQueryManager } from './singleton';
+import { useQueryContext } from './context';
 
 /** @interrnal creates query parameters by parsing query params options */
 export function createQueryParams<
@@ -90,7 +83,7 @@ export function queryHasError(query: QueryState) {
 }
 
 /**
- * global function to check if the query is completed
+ * @description global function to check if the query is completed
  */
 export function queryCompleted(query: QueryState) {
   return query.state === QueryStates.SUCCESS;
@@ -100,8 +93,8 @@ export function queryCompleted(query: QueryState) {
 export function queryResultBody<TResult = unknown>(
   key?: string
 ): OperatorFunction<QueryState, TResult> {
-  return (observable$: Observable<QueryState>) =>
-    observable$.pipe(
+  return (source: Observable<QueryState>) =>
+    source.pipe(
       queryResult((query) => {
         key = key ?? 'body';
         const response = query.response as Record<string, unknown>;
@@ -117,34 +110,64 @@ export type Logger = {
   log(message: string, ...args: unknown[]): void;
 };
 
+// @internal
+function isQueryObject(p: unknown): p is CacheQueryProviderType {
+  return (
+    typeof p === 'object' &&
+    p !== null &&
+    'query' in p &&
+    typeof p.query === 'function'
+  );
+}
+
 /** @internal */
-export function parseQueryArguments<T>(
-  params: T,
-  _args: [...QueryStateLeastParameters<T>]
+export function queryArguments<T>(
+  query: T,
+  args: [...QueryStateLeastParameters<T>]
 ) {
-  const _params = params as unknown;
-  let _arguments!: [...QueryStateLeastParameters<T>];
-  let _query!: T;
+  let params: [...QueryStateLeastParameters<T>] = args;
+  let q: T = query as unknown as T;
   let observe!: ObserveKeyType;
-  if (
-    (_params as CacheQueryProviderType).query &&
-    typeof (_params as CacheQueryProviderType).query === 'function'
-  ) {
-    const queryFunction = (...args: unknown[]) => {
-      return (_params as CacheQueryProviderType).query(...args);
+
+  if (isQueryObject(query)) {
+    const fn = (...args: unknown[]) => {
+      return query.query(...args);
     };
-    _query = queryFunction.bind(_params) as unknown as T;
-    const cacheConfig = (_params as CacheQueryProviderType).cacheConfig;
-    _arguments = (
-      typeof cacheConfig !== 'undefined' && cacheConfig !== null
-        ? [...(_args ?? []), cacheConfig]
-        : (_args ?? [])
+    q = fn.bind(query) as unknown as T;
+
+    // append cache configuration to query parameters if
+    // query instance has `cacheConfig` property
+    const config = 'cacheConfig' in query ? query.cacheConfig : undefined;
+    params = (
+      typeof config !== 'undefined' && config !== null
+        ? [...(args ?? []), config]
+        : (args ?? [])
     ) as [...QueryStateLeastParameters<T>];
-  } else if (typeof params === 'function') {
-    _query = _params as T;
-    _arguments = _args;
+
+    // if observe property is defined on cache configuration
+    // set value of the observe variable to the value of `observe` property
+    // of `cacheConfig`
+    if (
+      config &&
+      typeof config.observe !== 'undefined' &&
+      config.observe !== null
+    ) {
+      observe = config.observe;
+    }
+  } else {
+    const argument = args[args.length - 1];
+    if (
+      typeof argument === 'object' &&
+      argument !== null &&
+      'observe' in argument &&
+      typeof argument.observe === 'string'
+    ) {
+      observe = argument.observe as ObserveKeyType;
+    }
+    console.log('Observe: ', observe, args);
   }
-  return [_query, _arguments, observe] as [
+
+  return [q, params, observe] as [
     T,
     [...QueryStateLeastParameters<T>],
     ObserveKeyType,
@@ -225,34 +248,24 @@ export function _useQuery<T>(
   p: T,
   ...args: [...QueryStateLeastParameters<T>]
 ) {
-  const [_query, _arguments, observe] = parseQueryArguments(p, args);
-  let _observe = observe;
-  const queryManager = useQueryManager(logger ? logger : undefined);
-  const queryFunc = <TFunc extends (...args: UnknownType) => UnknownType>(
-    query: TFunc,
+  const [q, _arguments, observe] = queryArguments(p, args);
+  const m = useQueryContext(logger ? logger : undefined);
+  const fn = <TFunc extends (...args: UnknownType) => UnknownType>(
+    func: TFunc,
     ...args: [...QueryArguments<TFunc>]
   ) => {
-    return queryManager(query, ...args);
+    return m(func, ...args);
   };
-  const result = queryFunc(_query as UnknownType, ...(_arguments ?? []));
-  const _params = p as unknown;
-  if (typeof (_params as CacheQueryProviderType).query === 'function') {
-    _observe =
-      observe ?? (_params as CacheQueryProviderType).cacheConfig.observe;
-  }
-  return (
-    (!isObservable(result)
-      ? of(result)
-      : from(result)) as Observable<QueryState>
-  ).pipe(
-    _observe === 'response'
+  const result = fn(q as UnknownType, ...(_arguments ?? []));
+  const operator =
+    observe === 'response'
       ? queryResult()
-      : ((_observe === 'body'
-          ? queryResultBody()
-          : map((state) => state)) as OperatorFunction<QueryState, unknown>)
-  ) as Observable<UnknownType>;
-}
+      : observe === 'body'
+        ? queryResultBody()
+        : map((state) => state);
 
+  return result.pipe(operator) as Observable<UnknownType>;
+}
 
 /** @descriptions calls javascript log function with date time information */
 export function Log(...args: unknown[]) {
