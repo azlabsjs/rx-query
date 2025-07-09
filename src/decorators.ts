@@ -74,17 +74,21 @@ export function ProvidesQuery(
   return <T extends new (...args: UnknownType[]) => QueryProviderType>(
     constructor: T
   ) => {
-    const { name } = constructor;
     return class extends constructor {
       public readonly cacheConfig: CacheQueryConfig & {
         name: string;
         observe?: ObserveKeyType;
-      } = {
-        ...(typeof cacheConfig === 'boolean' && cacheConfig === true
-          ? useDefaultCacheConfig()
-          : cacheConfig),
-        name: `query::bindTo[${name}]`,
       };
+
+      constructor(...args: UnknownType[]) {
+        super(...args); // call the original constructor
+        this.cacheConfig = {
+          ...(typeof cacheConfig === 'boolean' && cacheConfig === true
+            ? useDefaultCacheConfig()
+            : cacheConfig),
+          name: `query::bindTo[${constructor.name}]`,
+        };
+      }
     };
   };
 }
